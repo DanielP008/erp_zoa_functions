@@ -1,0 +1,133 @@
+{
+  "adeslas": {
+    "atencion_cliente": "915645454",
+    "urgencias": "900322237"
+  },
+  "aig": {
+    "atencion_cliente": "915677400"
+  },
+  "allianz": {
+    "asistencia_carretera": "900117115",
+    "asistencia_camiones": "900117120",
+    "asistencia_hogar": "913255258",
+    "atencion_cliente": "900300250",
+    "siniestros": "914100629"
+  },
+  "arag": {
+    "asistencia_carretera": "933001050",
+    "asistencia_camiones": "934858919",
+    "atencion_cliente": "933094600"
+  },
+  "asisa": {
+    "atencion_cliente": "900101021",
+    "urgencias": "900900118"
+  },
+  "aura": {
+    "asistencia_carretera": "961134223",
+    "atencion_cliente": "934661760"
+  },
+  "axa": {
+    "asistencia_carretera": "900300188",
+    "asistencia_hogar": "900908832",
+    "atencion_cliente": "918070055"
+  },
+  "catalana_occidente": {
+    "numero_unico": "917838383"
+  },
+  "cesce": {
+    "atencion_cliente": "911931999"
+  },
+  "das": {
+    "asistencia_carretera": "935202270",
+    "atencion_cliente": "900828020"
+  },
+  "dkv": {
+    "asistencia_hogar": "976991198",
+    "atencion_cliente": "976506000",
+    "urgencias": "976991199"
+  },
+  "euroins": {
+    "asistencia_carretera": "935202270",
+    "siniestros": "910606571",
+    "lunas": "918096601"
+  },
+  "fe": {
+    "atencion_cliente": "986229300"
+  },
+  "fiatc": {
+    "asistencia_carretera": "900302020",
+    "asistencia_hogar": "912721923",
+    "atencion_cliente": "917015757",
+    "siniestros": "935216296"
+  },
+  "generali": {
+    "numero_unico": "900903433"
+  },
+  "helvetia": {
+    "asistencia": "913939057",
+    "atencion_cliente": "954593239"
+  },
+  "liberty": {
+    "asistencia": "900101369",
+    "atencion_cliente": "900112213"
+  },
+  "mapfre": {
+    "asistencia": "918365365",
+    "atencion_cliente": "918365365"
+  },
+  "mutua_madrilena": {
+    "numero_unico": "915555555"
+  },
+  "ocaso": {
+    "asistencia_hogar": "917039010",
+    "atencion_cliente": "917039009",
+    "decesos": "900141516"
+  },
+  "pelayo": {
+    "asistencia_carretera": "917496800",
+    "asistencia_hogar": "915200500",
+    "atencion_cliente": "915200500"
+  },
+  "prevision_mallorquina": {
+    "atencion_cliente": "900103057"
+  },
+  "previsora_general": {
+    "asistencia_hogar": "933041600",
+    "atencion_cliente": "933041600",
+    "urgencias": "938917111"
+  },
+  "preventiva": {
+    "asistencia_carretera": "915160500",
+    "asistencia_hogar": "915160500",
+    "atencion_cliente": "902304060"
+  },
+  "qualitas": {
+    "asistencia_carretera": "900901281",
+    "atencion_cliente": "912755440"
+  },
+  "reale": {
+    "asistencia_carretera": "914547400",
+    "asistencia_hogar": "914547400",
+    "atencion_cliente": "914547400"
+  },
+  "santa_lucia": {
+    "asistencia_carretera": "917886150",
+    "asistencia_hogar": "917886150",
+    "atencion_cliente": "900242020"
+  },
+  "sanitas": {
+    "atencion_cliente": "910284050",
+    "urgencias": "917522901"
+  },
+  "surne": {
+    "atencion_cliente": "944792200"
+  },
+  "wr_berkley": {
+    "atencion_cliente": "914492646"
+  },
+  "zurich": {
+    "asistencia_carretera": "934165040",
+    "asistencia_hogar": "934165040",
+    "atencion_cliente": "913755755"
+  }
+}
