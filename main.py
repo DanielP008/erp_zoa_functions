@@ -21,15 +21,6 @@ def main(request):
         <https://flask.palletsprojects.com/en/1.1.x/api/#flask.make_response>.
     """
 
-    # Ejemplo de JSON requerido en el body del request:
-    # {
-    #     "phone_number_id": "1108392928272820",
-    #     "option": "detalle_cliente"  # opciones posibles: 'detalle_cliente', 'polizas_cliente', etc.
-    #     "nif": "1234567890"
-    # }
-
-    # Obtener datos del request
-
     request_json = request.get_json(silent=True)
     
     if request_json is None:
@@ -73,28 +64,18 @@ def main(request):
         client.login(user, password)   
 
     #========== MÉTODOS TOOL ==========
-    # Puedes buscar por: nombre(solo importa orden: nombre completo apellido), NIF
-    clientes = client.search_customers(query=nif, size=10)
-    for c in clientes:
-        customer_id = c.get('id')
-        print(f"ID: {c.get('id')} - Nombre: {c.get('complete_name')}")
-    
-
+    #CLIENTES    
     if option == 'detalle_cliente':
         cliente = client.get_customer_by_nif(nif)
         print(cliente)
         return cliente
 
-
-
-
     #SINIESTROS
     #Necesita otro dato en el JSON de entrada 'nif_cliente'
     if option == 'estado_siniestros':
         siniestros_cliente = client.get_customer_claims(nif)
-        #Le podemos devolver la info filtrada al agente o todo
-        return siniestros_cliente
-    
+        #Existe STATUS pero habria que ver que se necesita exactamente para el agente
+        return siniestros_cliente 
 
     if option == 'notificacion_siniestros': 
         siniestros = client.get_new_flagged_claims()
@@ -108,7 +89,6 @@ def main(request):
                 "option": "search",
                 "nif": siniestro.get('nif')
             }
-            #TODO Comprobar que exista la plantilla
 
             try:
                 res_zoa = requests.post(url, json=payload_search, timeout=10)
@@ -119,7 +99,6 @@ def main(request):
                 print(f"Error buscando cliente de siniestro en Zoa: {e}")
                 continue
 
-            # 4. Envío del mensaje/plantilla
             payload_send = {
                 "company_id": company_id,
                 "action": "conversations",
@@ -137,8 +116,6 @@ def main(request):
             except Exception as e:
                 print(f"Error enviando mensaje de siniestro: {e}")
 
-            # 5. Guardar en la lista de resultados para retorno
-            
             seguimiento_siniestros.append({
                 'desc_siniestro': siniestro.get('desc_siniestro'),
                 'client_name': nombre,
@@ -162,10 +139,6 @@ def main(request):
         }
         return client.create_claim(payload_send)
     '''
-        
-
-
-
 
     #POLIZAS (Consulta, Tlf. Asistencia)
     #Tlf. Asistencia
@@ -176,20 +149,14 @@ def main(request):
         
         return polizas_vigentes
 
-
     #Consulta
     if option == 'documento_polizas':
         
         return client.get_policy_doc_by_policynum(num_poliza)
 
-
-    
-
-
     #RECIBOS (Impagos, Duplicado recibo, Renovaciones)
     #Impagos
     if option == 'info_banco_devolucion':
-        
         api_poliza = client.get_policy_by_num(num_poliza)
         cust_banks = api_poliza.get('customer').get('bank_accounts')
 
@@ -199,7 +166,6 @@ def main(request):
                 cust_acc_num = cust_bank.get('account_number')
                 break
         return cust_acc_num
-
 
     #Duplicado recibo
     if option == 'documento_recibo':
@@ -215,7 +181,6 @@ def main(request):
             return []
         else:
             return ultimo_recibo  
-
 
     #Renovaciones
     if option == 'renovaciones_auto_semana':
