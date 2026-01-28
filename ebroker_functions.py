@@ -116,6 +116,23 @@ class EBrokerClient:
                 })
         return polizas_vigentes
 
+    def get_all_policys_by_client_category(self,nif,ramo):
+        polizas = self.get_customer_policies(nif)
+        polizas_ramo = []
+        for p in polizas:
+            if p.get('status', {}).get('id') == 'V' :
+                if ramo.lower() in p.get('subcategory', {}).get('name', '').lower() or ramo.lower() in p.get('subcategory', {}).get('category', {}).get('name', '').lower():
+                    company_name = p.get('company', {}).get('name', '')
+                    company_id = p.get('company', {}).get('id', '')
+                    polizas_ramo.append({
+                        'company_id': company_id,
+                        'company_name': company_name,
+                        'risk': p.get('risk', ''),
+                        'phones': get_phones(company_name)
+                    })
+        return polizas_ramo
+
+
     def get_customer_claims(self, nif: int) -> List[Dict]:
         customer_id = self.get_customer_by_nif(nif)[0]
         return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/claims")
