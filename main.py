@@ -32,7 +32,7 @@ def main(request):
     nif =  request_json.get('nif')
     num_poliza = request_json.get('num_poliza')
     phone = request_json.get('phone')
-    #Estos dos se pueden poner en un JSON o array de 2 para que el agente los pase juntos (si es mejor a nivel imput de datos)
+    #TODO FORMATO STANDARD DE DATE es dia mes año, ebroker espera año mes dia
     start_date = request_json.get('start_date')
     frequency = request_json.get('frequency')
     lines = request_json.get('lines')
@@ -61,10 +61,17 @@ def main(request):
         client_id = erp['client_id']
         erp_type = erp['erp_type']
     
-    if erp_type == 'ebroker':
-        #Inicializar
-        client = ebroker_functions.EBrokerClient(client_id=client_id)
-        client.login(user, password)   
+    #pasame el siguiente if a un switch case    
+    match erp_type:
+        case 'ebroker':
+            #Inicializar
+            client = ebroker_functions.EBrokerClient(client_id=client_id)
+            client.login(user, password)
+        case _:
+            #Default
+            client = ebroker_functions.EBrokerClient(client_id=client_id)
+            client.login(user, password)
+
 
     #========== MÉTODOS TOOL ==========
     #CLIENTES    
