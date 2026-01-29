@@ -31,6 +31,7 @@ def main(request):
     option =  request_json.get('option')
     nif =  request_json.get('nif')
     num_poliza = request_json.get('num_poliza')
+    phone = request_json.get('phone')
     #Estos dos se pueden poner en un JSON o array de 2 para que el agente los pase juntos (si es mejor a nivel imput de datos)
     start_date = request_json.get('start_date')
     frequency = request_json.get('frequency')
@@ -72,12 +73,15 @@ def main(request):
 
     #SINIESTROS
     #Necesita otro dato en el JSON de entrada 'nif_cliente'
-    if option == 'estado_siniestros':
+    if option == 'get_claims':
         siniestros_cliente = client.get_customer_claims(nif)
-        #Existe STATUS pero habria que ver que se necesita exactamente para el agente
-        return siniestros_cliente 
+        return siniestros_cliente
 
-    if option == 'notificacion_siniestros': 
+    if option == 'get_status_claims':
+        siniestros = client.get_new_flagged_claims()
+        return siniestros 
+
+    if option == 'get_new_flagged_claims': 
         siniestros = client.get_new_flagged_claims()
         seguimiento_siniestros = []
         url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
@@ -142,7 +146,7 @@ def main(request):
 
     #POLIZAS (Consulta, Tlf. Asistencia)
     #Tlf. Asistencia
-    if option == 'polizas_cliente':
+    if option == 'get_policies':
 
         # Obtener pólizas del cliente ID 
         polizas_vigentes = client.get_customer_active_policies(nif)
@@ -150,7 +154,7 @@ def main(request):
         return polizas_vigentes
 
     #Consulta
-    if option == 'documento_polizas':
+    if option == 'get_doc_policies':
         
         return client.get_policy_doc_by_policynum(num_poliza)
 
@@ -291,3 +295,20 @@ def get_phones(company_name):
     # Si no está en el mapeo, intentar buscar por coincidencia parcial
     company_lower = company_name.lower().replace(' ', '_')
     return company_phones.get(company_lower, {})
+
+def get_nif_by_phone(phone):
+    url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
+    payload_search = {
+        "company_id": company_id,
+        "action": "contacts",
+        "option": "search",
+        "phone": phone
+    }
+    try:
+        res_zoa = requests.post(url, json=payload_search, timeout=10)
+        res_zoa.raise_for_status()
+        datos_zoa = res_zoa.json()
+        return datos_zoa.get('nif')
+    except Exception as e:
+        print(f"Error buscando cliente en Zoa: {e}")
+        return None

@@ -150,9 +150,12 @@ class EBrokerClient:
     def get_claim_labels(self, claim_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/claims/{claim_id}/labels")
 
+    def get_claim_by_date(self, date: str) -> List[Dict]:
+        return self._make_request("business", "GET", f"/v1/claims?query=opening_date:{date.strftime('%Y/%m/%d')}&order=ASC")
+
     def get_new_flagged_claims(self):
         timenow = (datetime.now() - timedelta(days=1)).strftime("%Y/%m/%d")
-        claims = self.get_claims(query=f"opening_date:{timenow}")
+        claims = self.get_claim_by_date(timenow)
         data = {}
         for claim in claims:
             claimlbls = self.get_claim_labels(claim.get('id'))
