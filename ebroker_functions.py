@@ -97,12 +97,11 @@ class EBrokerClient:
     def get_customer_by_nif(self, nif: str) -> Dict:
         return self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}&order=ASC")
 
+    #TODO: Fix this method
     def get_customer_policies(self, nif: int) -> List[Dict]:
-        customers = self.get_customer_by_nif(nif)
-        if not customers or len(customers) == 0:
-            return []
-        customer_id = customers[0]['id']  # ← Extract just the ID number
+        customer_id = self.get_customer_by_nif(nif)  # ← Returns a LIST, not a customer object
         return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/policies")
+        #                                                         ↑ Trying to use a LIST as an ID!
 
     def get_customer_active_policies(self, nif: int) -> List[Dict]:
         polizas_vigentes = []
