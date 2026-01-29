@@ -98,14 +98,10 @@ class EBrokerClient:
         return self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}&order=ASC")
 
     def get_customer_policies(self, nif: int) -> List[Dict]:
-        customer_id = self.get_customer_by_nif(nif)
-        return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/policies")
-
-    def get_customer_policies(self, nif: int) -> List[Dict]:
-        customer_data = self.get_customer_by_nif(nif)
-        if not customer_data or len(customer_data) == 0:
+        customers = self.get_customer_by_nif(nif)
+        if not customers or len(customers) == 0:
             return []
-        customer_id = customer_data[0].get('id')  # Extract the ID from the first customer
+        customer_id = customers[0]['id']  # ← Extract just the ID number
         return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/policies")
 
     def get_customer_active_policies(self, nif: int) -> List[Dict]:
