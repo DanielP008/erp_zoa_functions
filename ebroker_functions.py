@@ -163,7 +163,7 @@ class EBrokerClient:
         return self._make_request("business", "GET", f"/v1/claims?query=opening_date:{date.strftime('%Y/%m/%d')}&order=ASC")
 
     def get_claim_status(self, claim_id: int) -> Dict:
-        return self._make_request("business", "GET", f"/v1/claims/{claim_id}").get('status', {}).get('description', '')
+        return {"Status":self._make_request("business", "GET", f"/v1/claims/{claim_id}").get('status', {}).get('description', '')}
 
     def get_new_flagged_claims(self):
         timenow = (datetime.now() - timedelta(days=1)).strftime("%Y/%m/%d")
