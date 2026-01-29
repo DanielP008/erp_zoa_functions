@@ -35,6 +35,8 @@ def main(request):
     #Estos dos se pueden poner en un JSON o array de 2 para que el agente los pase juntos (si es mejor a nivel imput de datos)
     start_date = request_json.get('start_date')
     frequency = request_json.get('frequency')
+    lines = request_json.get('lines')
+    id_siniestro = request_json.get('id_siniestro')
 
 
     #Cargar datos Firebase
@@ -74,11 +76,11 @@ def main(request):
     #SINIESTROS
     #Necesita otro dato en el JSON de entrada 'nif_cliente'
     if option == 'get_claims':
-        siniestros_cliente = client.get_customer_claims(nif)
+        siniestros_cliente = client.get_customer_claims_by_category(nif,lines)
         return siniestros_cliente
 
     if option == 'get_status_claims':
-        siniestros = client.get_new_flagged_claims()
+        siniestros = client.get_claim_status(id_siniestro)
         return siniestros 
 
     if option == 'get_new_flagged_claims': 
@@ -148,9 +150,8 @@ def main(request):
     #Tlf. Asistencia
     if option == 'get_policies':
 
-        # Obtener pólizas del cliente ID 
-        polizas_vigentes = client.get_customer_active_policies(nif)
-        
+        # Obtener pólizas del cliente ID del ramo indicado
+        polizas_vigentes = client.get_all_policys_by_client_category(nif,lines)
         return polizas_vigentes
 
     #Consulta

@@ -121,7 +121,7 @@ class EBrokerClient:
         polizas_ramo = []
         for p in polizas:
             if p.get('status', {}).get('id') == 'V' :
-                if ramo.lower() in p.get('subcategory', {}).get('name', '').lower() or ramo.lower() in p.get('subcategory', {}).get('category', {}).get('name', '').lower():
+                if ramo.lower().replace('.', '') in p.get('subcategory', {}).get('name', '').lower().replace('.', '') or ramo.lower().replace('.', '') in p.get('subcategory', {}).get('category', {}).get('name', '').lower().replace('.', '') :
                     company_name = p.get('company', {}).get('name', '')
                     company_id = p.get('company', {}).get('id', '')
                     polizas_ramo.append({
@@ -133,9 +133,18 @@ class EBrokerClient:
         return polizas_ramo
 
 
-    def get_customer_claims(self, nif: int) -> List[Dict]:
+    def get_customer_claims_by_category(self, nif: int,ramo:str) -> List[Dict]:
         customer_id = self.get_customer_by_nif(nif)[0]
-        return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/claims")
+        claims = self._make_request("crm", "GET", f"/v1/customers/{customer_id}/claims")
+        claims_ramo = []
+        for claim in claims:
+            if ramo.lower().replace('.', '') in claim.get('subcategory', {}).get('name', '').lower().replace('.', '') or ramo.lower().replace('.', '') in claim.get('subcategory', {}).get('category', {}).get('name', '').lower().replace('.', '') :
+                claims_ramo.append({
+                    'id': claim.get('id', ''),
+                    'opening_date': claim.get('opening_date', ''),
+                    'risk': claim.get('risk', '')
+                })
+        return claims_ramo
 
     # ========== Business methods used by main.py ==========
     def get_claims(self, query: Optional[str] = None, sort: Optional[str] = None,
@@ -152,6 +161,9 @@ class EBrokerClient:
 
     def get_claim_by_date(self, date: str) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/claims?query=opening_date:{date.strftime('%Y/%m/%d')}&order=ASC")
+
+    def get_claim_status(self, claim_id: int) -> Dict:
+        return self._make_request("business", "GET", f"/v1/claims/{claim_id}").get('status', {}).get('description', '')
 
     def get_new_flagged_claims(self):
         timenow = (datetime.now() - timedelta(days=1)).strftime("%Y/%m/%d")
