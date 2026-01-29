@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  zoa-flow-erp:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    # You might need to provide a service account key file if running locally
+    # - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
