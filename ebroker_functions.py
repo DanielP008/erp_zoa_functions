@@ -322,6 +322,7 @@ def get_phones(company_name):
         'GENERALI SEGUROS': 'generali',
         'GENERALI ESPAÑA': 'generali',
         'MAPFRE': 'mapfre',
+        'MAPFRE FAMILIAR': 'mapfre',
         'ALLIANZ': 'allianz',
         'AXA': 'axa',
         'ZURICH': 'zurich',
