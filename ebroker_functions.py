@@ -96,16 +96,21 @@ class EBrokerClient:
 
     def get_customer_by_nif(self, nif: str) -> List[Dict]:
         result = self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}&order=ASC")
-        print(result)
+        print("Result del get_customer_by_nif:", result)
         return result
 
-    #TODO: Fix this method
-    def get_customer_policies(self, nif: int) -> List[Dict]:
-        customer_id = self.get_customer_by_nif(nif)[0]  # ← Returns a LIST, not a customer object
-        return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/policies")
-        #                                                         ↑ Trying to use a LIST as an ID!
+    def get_customer_policies(self, nif: str) -> List[Dict]:
+        customers = self.get_customer_by_nif(nif)
+        if not customers:
+            return []  # Return empty list if no customer found
 
-    def get_customer_active_policies(self, nif: int) -> List[Dict]:
+        customer_id = customers[0].get('id')
+        if not customer_id:
+            return []  # Return empty list if customer has no ID
+
+        return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/policies")
+
+    def get_customer_active_policies(self, nif: str) -> List[Dict]:
         polizas_vigentes = []
         polizas = self.get_customer_policies(nif)
         for p in polizas:
@@ -120,7 +125,7 @@ class EBrokerClient:
                 })
         return polizas_vigentes
 
-    def get_all_policys_by_client_category(self,nif,ramo):
+    def get_all_policys_by_client_category(self, nif: str, ramo: str) -> List[Dict]:
         polizas = self.get_customer_policies(nif)
         polizas_ramo = []
         for p in polizas:
@@ -137,8 +142,14 @@ class EBrokerClient:
         return polizas_ramo
 
 
-    def get_customer_claims_by_category(self, nif: int,ramo:str) -> List[Dict]:
-        customer_id = self.get_customer_by_nif(nif)[0]
+    def get_customer_claims_by_category(self, nif: str, ramo: str) -> List[Dict]:
+        customers = self.get_customer_by_nif(nif)
+        if not customers:
+            return []  # Return empty list if no customer found
+
+        customer_id = customers[0].get('id')
+        if not customer_id:
+            return []  # Return empty list if customer has no ID
         claims = self._make_request("crm", "GET", f"/v1/customers/{customer_id}/claims")
         claims_ramo = []
         for claim in claims:
