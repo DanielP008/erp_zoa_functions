@@ -199,7 +199,7 @@ def main(request):
 
     #Consulta
     if option == 'get_doc_policies':
-        
+        print(f"[DEBUG] main.py: Processing 'get_doc_policies' option with num_poliza={num_poliza}")
         return client.get_policy_doc_by_policynum(num_poliza)
 
     #RECIBOS (Impagos, Duplicado recibo, Renovaciones)
