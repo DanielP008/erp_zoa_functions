@@ -313,6 +313,7 @@ class EBrokerClient:
 # ========== Utility function required by kept methods ==========
 def get_phones(company_name):
     if not company_name:
+        print("[DEBUG] ebroker_functions.py: No company name provided")
         return {}
     with open('insurance_phones.json', 'r', encoding='utf-8') as f:
         company_phones = json.load(f)
@@ -328,7 +329,6 @@ def get_phones(company_name):
         'MAPFRE': 'mapfre',
         'MAPFRE FAMILIAR': 'mapfre',
         'ALLIANZ': 'allianz',
-
         'AXA': 'axa',
         'ZURICH': 'zurich',
         'REALE': 'reale',
@@ -361,9 +361,11 @@ def get_phones(company_name):
     key = comapnies.get(company_clean)
     
     if key:
+        print(f"[DEBUG] ebroker_functions.py: Found company '{company_name}' in mapping as '{key}'")
         return company_phones.get(key, {})
     
     # Si no está en el mapeo, intentar buscar por coincidencia parcial
     company_lower = company_clean.lower().replace(' ', '_')
+    print(f"[DEBUG] ebroker_functions.py: Company '{company_name}' not found in mapping, searching for partial match as '{company_lower}'")
     return company_phones.get(company_lower, {})
 
