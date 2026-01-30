@@ -156,9 +156,11 @@ def main(request):
     #POLIZAS (Consulta, Tlf. Asistencia)
     #Tlf. Asistencia
     if option == 'get_policies':
+        print(f"[DEBUG] main.py: Processing 'get_policies' option with nif={nif}, lines={lines}")
 
         # Obtener pólizas del cliente ID del ramo indicado
         polizas_vigentes = client.get_all_policys_by_client_category(nif,lines)
+        print(f"[DEBUG] main.py: get_all_policys_by_client_category returned {len(polizas_vigentes) if polizas_vigentes else 0} policies")
         return polizas_vigentes
 
     #Consulta
@@ -250,59 +252,7 @@ def main(request):
 
         return renovaciones_vigentes
 
-def get_phones(company_name):
-    if not company_name:
-        return {}
 
-    with open('insurance_phones.json', 'r', encoding='utf-8') as f:
-        company_phones = json.load(f)
-    
-    # Mapeo de nombres de compañías a keys del JSON
-    comapnies = {
-        'OCCIDENT': 'catalana_occidente',
-        'GENERALI': 'generali',
-        'GENERALI SEGUROS': 'generali',
-        'MAPFRE': 'mapfre',
-        'ALLIANZ': 'allianz',
-        'AXA': 'axa',
-        'ZURICH': 'zurich',
-        'REALE': 'reale',
-        'FIATC': 'fiatc',
-        'MUTUA MADRILEÑA': 'mutua_madrilena',
-        'SANITAS': 'sanitas',
-        'ADESLAS': 'adeslas',
-        'DKV': 'dkv',
-        'ASISA': 'asisa',
-        'PELAYO': 'pelayo',
-        'LIBERTY': 'liberty',
-        'HELVETIA': 'helvetia',
-        'OCASO': 'ocaso',
-        'SANTA LUCIA': 'santa_lucia',
-        'QUALITAS': 'qualitas',
-        'ARAG': 'arag',
-        'DAS': 'das',
-        'EUROINS': 'euroins',
-        'PREVENTIVA': 'preventiva',
-        'AIG': 'aig',
-        'AURA': 'aura',
-        'CESCE': 'cesce',
-        'FE': 'fe',
-        'PREVISORA GENERAL': 'previsora_general',
-        'PREVISION MALLORQUINA': 'prevision_mallorquina',
-        'SURNE': 'surne',
-        'WR BERKLEY': 'wr_berkley'
-    }
-    
-    # Buscar en el mapeo
-    company_upper = company_name.upper().strip()
-    key = comapnies.get(company_upper)
-    
-    if key:
-        return company_phones.get(key, {})
-    
-    # Si no está en el mapeo, intentar buscar por coincidencia parcial
-    company_lower = company_name.lower().replace(' ', '_')
-    return company_phones.get(company_lower, {})
 
 def get_nif_by_phone(phone):
     url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
