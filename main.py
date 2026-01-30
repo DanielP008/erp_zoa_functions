@@ -5,12 +5,45 @@ import firebase_admin
 from firebase_admin import db,credentials,storage,firestore
 from datetime import datetime
 import requests
+from typing import TypedDict, Optional, List, Union
+
+# --- INTERFACES DE DATOS (DOCUMENTACIÓN DE CÓDIGO) ---
+
+class BaseRequest(TypedDict):
+    company_id: str  # Obligatorio
+    option: str      # Obligatorio
+
+class DetailCustomerRequest(BaseRequest):
+    nif: str         # Obligatorio
+
+class PoliciesRequest(BaseRequest):
+    nif: str         # Obligatorio
+    lines: Optional[str] # Opcional: Ramo a filtrar (hogar, auto...)
+
+class ClaimsRequest(BaseRequest):
+    nif: str         # Obligatorio
+
+class PolicyDocRequest(BaseRequest):
+    num_poliza: str  # Obligatorio
+
+class ReceiptDocRequest(BaseRequest):
+    num_poliza: str  # Obligatorio
+
+class RenewalsRequest(BaseRequest):
+    start_date: Optional[str] # Opcional: ebroker espera YYYY-MM-DD
+    frequency: Optional[int]   # Opcional: Días de rango
+
+class ClaimStatusRequest(BaseRequest):
+    id_siniestro: int # Obligatorio
+
+# ---------------------------------------------------
 
 firebase_admin.initialize_app()
 
 
 @functions_framework.http
 def main(request):
+
     """HTTP Cloud Function.
     Args:
         request (flask.Request): The request object.
@@ -33,10 +66,11 @@ def main(request):
     num_poliza = request_json.get('num_poliza')
     phone = request_json.get('phone')
     #TODO FORMATO STANDARD DE DATE es dia mes año, ebroker espera año mes dia
-    start_date = request_json.get('start_date')
-    frequency = request_json.get('frequency')
-    lines = request_json.get('lines')
+    start_date = request_json.get('start_date', '')
+    frequency = request_json.get('frequency', 7)
+    lines = request_json.get('lines', '')
     id_siniestro = request_json.get('id_siniestro')
+
 
 
     #Cargar datos Firebase
