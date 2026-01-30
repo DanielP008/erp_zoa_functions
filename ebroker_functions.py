@@ -153,6 +153,7 @@ class EBrokerClient:
                 company_id = p.get('company', {}).get('id', '')
                 print(f"[DEBUG] ebroker_functions.py: Policy matches ramo filter - company='{company_name}'")
                 polizas_ramo.append({
+                    'number': p.get('number', ''),
                     'company_id': company_id,
                     'company_name': company_name,
                     'risk': p.get('risk', ''),
