@@ -94,12 +94,14 @@ class EBrokerClient:
             params["sort"] = sort
         return self._make_request("crm", "GET", "/v1/customers", params=params)
 
-    def get_customer_by_nif(self, nif: str) -> Dict:
-        return self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}&order=ASC")
+    def get_customer_by_nif(self, nif: str) -> List[Dict]:
+        result = self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}&order=ASC")
+        print(result)
+        return result
 
     #TODO: Fix this method
     def get_customer_policies(self, nif: int) -> List[Dict]:
-        customer_id = self.get_customer_by_nif(nif)  # ← Returns a LIST, not a customer object
+        customer_id = self.get_customer_by_nif(nif)[0]  # ← Returns a LIST, not a customer object
         return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/policies")
         #                                                         ↑ Trying to use a LIST as an ID!
 
