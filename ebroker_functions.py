@@ -316,6 +316,10 @@ def get_phones(company_name):
         return {}
     with open('insurance_phones.json', 'r', encoding='utf-8') as f:
         company_phones = json.load(f)
+    
+    # Si hay una coma (ej: "MAPFRE, S.A."), nos quedamos solo con lo de antes
+    company_clean = company_name.split(',')[0].upper().strip()
+    
     comapnies = {
         'OCCIDENT': 'catalana_occidente',
         'GENERALI': 'generali',
@@ -324,6 +328,7 @@ def get_phones(company_name):
         'MAPFRE': 'mapfre',
         'MAPFRE FAMILIAR': 'mapfre',
         'ALLIANZ': 'allianz',
+
         'AXA': 'axa',
         'ZURICH': 'zurich',
         'REALE': 'reale',
@@ -352,9 +357,13 @@ def get_phones(company_name):
         'SURNE': 'surne',
         'WR BERKLEY': 'wr_berkley'
     }
-    company_upper = company_name.upper().strip()
-    key = comapnies.get(company_upper)
+    # Buscar en el mapeo
+    key = comapnies.get(company_clean)
+    
     if key:
         return company_phones.get(key, {})
-    company_lower = company_name.lower().replace(' ', '_')
+    
+    # Si no está en el mapeo, intentar buscar por coincidencia parcial
+    company_lower = company_clean.lower().replace(' ', '_')
     return company_phones.get(company_lower, {})
+
