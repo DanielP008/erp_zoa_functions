@@ -124,6 +124,7 @@ class EBrokerClient:
             if p.get('status', {}).get('id') == 'V':
                 company_name = p.get('company', {}).get('name', '')
                 polizas_vigentes.append({
+                    'number': p.get('number', ''),
                     'company_name': company_name,
                     'risk': p.get('risk', ''),
                     'category_name': p.get('subcategory', {}).get('category', {}).get('name', ''),
