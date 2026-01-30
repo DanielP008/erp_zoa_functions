@@ -61,7 +61,9 @@
     "siniestros": "935216296"
   },
   "generali": {
-    "numero_unico": "900903433"
+    "asistencia": "900903433",
+    "asistencia_carretera": "911123443",
+    "asistencia_hogar": "900243657"
   },
   "helvetia": {
     "asistencia": "913939057",

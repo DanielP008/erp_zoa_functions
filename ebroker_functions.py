@@ -320,6 +320,7 @@ def get_phones(company_name):
         'OCCIDENT': 'catalana_occidente',
         'GENERALI': 'generali',
         'GENERALI SEGUROS': 'generali',
+        'GENERALI ESPAÑA': 'generali',
         'MAPFRE': 'mapfre',
         'ALLIANZ': 'allianz',
         'AXA': 'axa',
