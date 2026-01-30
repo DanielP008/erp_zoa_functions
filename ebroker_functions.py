@@ -145,22 +145,22 @@ class EBrokerClient:
             ramo_normalized = ramo.lower().replace('.', '')
 
             print(f"[DEBUG] ebroker_functions.py: Checking policy - status_id={status_id}, subcategory='{subcategory_name}', category='{category_name}'")
-
-            if status_id == 'V':
-                if ramo_normalized in subcategory_name or ramo_normalized in category_name:
-                    company_name = p.get('company', {}).get('name', '')
-                    company_id = p.get('company', {}).get('id', '')
-                    print(f"[DEBUG] ebroker_functions.py: Policy matches ramo filter - company='{company_name}'")
-                    polizas_ramo.append({
-                        'company_id': company_id,
-                        'company_name': company_name,
-                        'risk': p.get('risk', ''),
-                        'phones': get_phones(company_name)
-                    })
-                else:
-                    print(f"[DEBUG] ebroker_functions.py: Policy does not match ramo filter")
+            #TODO REACTIVAR V
+            #if status_id == 'V':
+            if ramo_normalized in subcategory_name or ramo_normalized in category_name:
+                company_name = p.get('company', {}).get('name', '')
+                company_id = p.get('company', {}).get('id', '')
+                print(f"[DEBUG] ebroker_functions.py: Policy matches ramo filter - company='{company_name}'")
+                polizas_ramo.append({
+                    'company_id': company_id,
+                    'company_name': company_name,
+                    'risk': p.get('risk', ''),
+                    'phones': get_phones(company_name)
+                })
             else:
-                print(f"[DEBUG] ebroker_functions.py: Policy status is not 'V' (active)")
+                print(f"[DEBUG] ebroker_functions.py: Policy does not match ramo filter")
+            #else:
+            print(f"[DEBUG] ebroker_functions.py: Policy status is not 'V' (active)")
         print(f"[DEBUG] ebroker_functions.py: Filtered down to {len(polizas_ramo)} policies matching ramo='{ramo}'")
         return polizas_ramo
 
