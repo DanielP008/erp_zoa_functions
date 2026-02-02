@@ -5,38 +5,7 @@ import firebase_admin
 from firebase_admin import db,credentials,storage,firestore
 from datetime import datetime
 import requests
-from typing import TypedDict, Optional, List, Union
 
-# --- INTERFACES DE DATOS (DOCUMENTACIÓN DE CÓDIGO) ---
-
-class BaseRequest(TypedDict):
-    company_id: str  # Obligatorio
-    option: str      # Obligatorio
-
-class DetailCustomerRequest(BaseRequest):
-    nif: str         # Obligatorio
-
-class PoliciesRequest(BaseRequest):
-    nif: str         # Obligatorio
-    lines: Optional[str] # Opcional: Ramo a filtrar (hogar, auto...)
-
-class ClaimsRequest(BaseRequest):
-    nif: str         # Obligatorio
-
-class PolicyDocRequest(BaseRequest):
-    num_poliza: str  # Obligatorio
-
-class ReceiptDocRequest(BaseRequest):
-    num_poliza: str  # Obligatorio
-
-class RenewalsRequest(BaseRequest):
-    start_date: Optional[str] # Opcional: ebroker espera YYYY-MM-DD
-    frequency: Optional[int]   # Opcional: Días de rango
-
-class ClaimStatusRequest(BaseRequest):
-    id_siniestro: int # Obligatorio
-
-# ---------------------------------------------------
 
 firebase_admin.initialize_app()
 
@@ -197,6 +166,12 @@ def main(request):
         print(f"[DEBUG] main.py: get_all_policys_by_client_category returned {len(polizas_vigentes) if polizas_vigentes else 0} policies")
         return polizas_vigentes
 
+    #ELIMINAR AL TERMINAR PRUEBAS
+    if option == 'get_policy_by_num':
+        print(f"[DEBUG] main.py: Processing 'get_policy_by_num' option with num_poliza={num_poliza}")
+        return client.get_policy_by_num(num_poliza)
+    #------------------------
+
     #Consulta
     if option == 'get_doc_policies':
         print(f"[DEBUG] main.py: Processing 'get_doc_policies' option with num_poliza={num_poliza}")
@@ -228,7 +203,7 @@ def main(request):
         if ultimo_recibo == None:
             return []
         else:
-            return ultimo_recibo  
+            return ultimo_recibo
 
     #Renovaciones
     if option == 'renovaciones_auto_semana':
