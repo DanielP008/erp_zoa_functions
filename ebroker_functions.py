@@ -243,7 +243,13 @@ class EBrokerClient:
         if api_poliza and len(api_poliza) > 0:
             documentos_poliza = api_poliza[0].get('documents', {})
             for documento_poliza in documentos_poliza:
-                doc_data = self.get_document(documento_poliza.get('id'))
+                doc_id = documento_poliza.get('id')
+                try:
+                    doc_data = self.get_document(doc_id)
+                except Exception as e:
+                    print(f"[ERROR] Failed to download document ID {doc_id}: {e}")
+                    continue
+
                 filename = documento_poliza.get('filename', '')
                 if filename.startswith("pol") and filename.endswith(".pdf"):
                     resultado.append({
@@ -251,6 +257,7 @@ class EBrokerClient:
                         'filename': filename,
                         'data': doc_data.get('base64_content'),
                     })
+
         return resultado
 
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
