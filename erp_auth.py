@@ -23,5 +23,4 @@ def get_erp_client(domain_info):
                 client.login(user, password)
                 return client
     except Exception as e:
-        print(f"[ERROR] erp_auth.py: Failed to initialize/login ERP client: {e}")
-        return None
+        return f"[ERROR] erp_auth.py: Failed to initialize/login ERP client: {e}"

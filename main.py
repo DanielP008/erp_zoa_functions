@@ -46,11 +46,16 @@ def main(request):
     # Cargar datos Firebase
     domain_info = database_functions.get_company_config(company_id)
 
+    if isinstance(domain_info, dict) and "error" in domain_info:
+        return domain_info, 500
+
     if not domain_info:
         return {"error": f"Configuración no encontrada para company_id: {company_id}"}, 404
 
     try:
         client = erp_auth.get_erp_client(domain_info)
+        if isinstance(client, str):
+            return {"error": f'Error conectando con el ERP: {client}'}, 500
         if not client:
             return {"error": "Error conectando con el ERP (Login fallido)"}, 500
     except Exception as e:

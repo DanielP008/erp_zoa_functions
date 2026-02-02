@@ -13,8 +13,7 @@ def get_company_config(company_id: str):
     try:
         docs = firestore_db.collection(u'waba_accounts').where(u'phones_ids', u'array_contains', company_id).get()
     except Exception as e:
-        print(f"[ERROR] Database connection failed: {e}")
-        return None
+        return {"error": f"[ERROR] Database connection failed: {e}"}
     
     if not docs:
         return None

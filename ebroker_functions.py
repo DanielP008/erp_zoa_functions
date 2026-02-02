@@ -304,59 +304,33 @@ class EBrokerClient:
 # ========== Utility function required by kept methods ==========
 def get_phones(company_name):
     if not company_name:
-        print("[DEBUG] ebroker_functions.py: No company name provided")
         return {}
-    with open('insurance_phones.json', 'r', encoding='utf-8') as f:
-        company_phones = json.load(f)
     
-    # Si hay una coma (ej: "MAPFRE, S.A."), nos quedamos solo con lo de antes
-    company_clean = company_name.split(',')[0].upper().strip()
+    try:
+        with open('insurance_phones.json', 'r', encoding='utf-8') as f:
+            company_phones = json.load(f)
+    except Exception as e:
+        print(f"[ERROR] Failed to load insurance_phones.json: {e}")
+        return {}
     
-    comapnies = {
-        'OCCIDENT': 'catalana_occidente',
-        'GENERALI': 'generali',
-        'GENERALI SEGUROS': 'generali',
-        'GENERALI ESPAÑA': 'generali',
-        'MAPFRE': 'mapfre',
-        'MAPFRE FAMILIAR': 'mapfre',
-        'ALLIANZ': 'allianz',
-        'AXA': 'axa',
-        'ZURICH': 'zurich',
-        'REALE': 'reale',
-        'FIATC': 'fiatc',
-        'MUTUA MADRILEÑA': 'mutua_madrilena',
-        'SANITAS': 'sanitas',
-        'ADESLAS': 'adeslas',
-        'DKV': 'dkv',
-        'ASISA': 'asisa',
-        'PELAYO': 'pelayo',
-        'LIBERTY': 'liberty',
-        'HELVETIA': 'helvetia',
-        'OCASO': 'ocaso',
-        'SANTA LUCIA': 'santa_lucia',
-        'QUALITAS': 'qualitas',
-        'ARAG': 'arag',
-        'DAS': 'das',
-        'EUROINS': 'euroins',
-        'PREVENTIVA': 'preventiva',
-        'AIG': 'aig',
-        'AURA': 'aura',
-        'CESCE': 'cesce',
-        'FE': 'fe',
-        'PREVISORA GENERAL': 'previsora_general',
-        'PREVISION MALLORQUINA': 'prevision_mallorquina',
-        'SURNE': 'surne',
-        'WR BERKLEY': 'wr_berkley'
+    company_clean = company_name.lower().replace('_', ' ')
+    
+    # 1. Alias manuales para casos que no coinciden por nombre (ej: cambio de marca)
+    aliases = {
+        'occident': 'catalana_occidente'
     }
-    # Buscar en el mapeo
-    key = comapnies.get(company_clean)
     
-    if key:
-        print(f"[DEBUG] ebroker_functions.py: Found company '{company_name}' in mapping as '{key}'")
-        return company_phones.get(key, {})
-    
-    # Si no está en el mapeo, intentar buscar por coincidencia parcial
-    company_lower = company_clean.lower().replace(' ', '_')
-    print(f"[DEBUG] ebroker_functions.py: Company '{company_name}' not found in mapping, searching for partial match as '{company_lower}'")
-    return company_phones.get(company_lower, {})
+    for alias_key, target_key in aliases.items():
+        if alias_key in company_clean:
+             return company_phones.get(target_key, {})
+
+    # 2. Búsqueda laxa: Ver si alguna clave del JSON está contenida en el nombre de la compañía
+    for key, phones in company_phones.items():
+        key_normalized = key.replace('_', ' ')
+        if key_normalized in company_clean:
+            return phones
+        if key in company_clean:
+            return phones
+            
+    return {}
 
