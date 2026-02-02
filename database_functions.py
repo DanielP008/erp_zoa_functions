@@ -10,7 +10,11 @@ def get_company_config(company_id: str):
         firebase_admin.initialize_app()
         
     firestore_db = firestore.client()
-    docs = firestore_db.collection(u'waba_accounts').where(u'phones_ids', u'array_contains', company_id).get()
+    try:
+        docs = firestore_db.collection(u'waba_accounts').where(u'phones_ids', u'array_contains', company_id).get()
+    except Exception as e:
+        print(f"[ERROR] Database connection failed: {e}")
+        return None
     
     if not docs:
         return None

@@ -95,26 +95,18 @@ class EBrokerClient:
         return self._make_request("crm", "GET", "/v1/customers", params=params)
 
     def get_customer_by_nif(self, nif: str) -> List[Dict]:
-        print(f"[DEBUG] ebroker_functions.py: get_customer_by_nif called with nif={nif}")
         result = self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}&order=ASC")
-        print(f"[DEBUG] ebroker_functions.py: get_customer_by_nif API result: {result}")
         return result
 
     def get_customer_policies(self, nif: str) -> List[Dict]:
-        print(f"[DEBUG] ebroker_functions.py: get_customer_policies called with nif={nif}")
         customers = self.get_customer_by_nif(nif)
-        print(f"[DEBUG] ebroker_functions.py: get_customer_by_nif returned {len(customers) if customers else 0} customers")
         if not customers:
-            print("[DEBUG] ebroker_functions.py: No customers found, returning empty list")
             return []  # Return empty list if no customer found
 
         customer_id = customers[0].get('id')
-        print(f"[DEBUG] ebroker_functions.py: Extracted customer_id={customer_id}")
         if not customer_id:
-            print("[DEBUG] ebroker_functions.py: Customer has no ID, returning empty list")
             return []  # Return empty list if customer has no ID
 
-        print(f"[DEBUG] ebroker_functions.py: Making API request to get policies for customer_id={customer_id}")
         return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/policies")
 
     def get_customer_active_policies(self, nif: str) -> List[Dict]:
@@ -134,24 +126,19 @@ class EBrokerClient:
         return polizas_vigentes
 
     def get_all_policys_by_client_category(self, nif: str, ramo: str) -> List[Dict]:
-        print(f"[DEBUG] ebroker_functions.py: get_all_policys_by_client_category called with nif={nif}, ramo={ramo}")
         polizas = self.get_customer_policies(nif)
-        print(f"[DEBUG] ebroker_functions.py: get_customer_policies returned {len(polizas) if polizas else 0} total policies")
         polizas_ramo = []
-        print(f"[DEBUG] ebroker_functions.py: Filtering {len(polizas)} policies for ramo='{ramo}'")
         for p in polizas:
             status_id = p.get('status', {}).get('id')
             subcategory_name = p.get('subcategory', {}).get('name', '').lower().replace('.', '')
             category_name = p.get('subcategory', {}).get('category', {}).get('name', '').lower().replace('.', '')
             ramo_normalized = ramo.lower().replace('.', '')
 
-            print(f"[DEBUG] ebroker_functions.py: Checking policy - status_id={status_id}, subcategory='{subcategory_name}', category='{category_name}'")
             #TODO REACTIVAR V
             #if status_id == 'V':
             if ramo_normalized in subcategory_name or ramo_normalized in category_name:
                 company_name = p.get('company', {}).get('name', '')
                 company_id = p.get('company', {}).get('id', '')
-                print(f"[DEBUG] ebroker_functions.py: Policy matches ramo filter - company='{company_name}'")
                 polizas_ramo.append({
                     'number': p.get('number', ''),
                     'company_id': company_id,
@@ -159,11 +146,6 @@ class EBrokerClient:
                     'risk': p.get('risk', ''),
                     'phones': get_phones(company_name)
                 })
-            else:
-                print(f"[DEBUG] ebroker_functions.py: Policy does not match ramo filter")
-            #else:
-            print(f"[DEBUG] ebroker_functions.py: Policy status is not 'V' (active)")
-        print(f"[DEBUG] ebroker_functions.py: Filtered down to {len(polizas_ramo)} policies matching ramo='{ramo}'")
         return polizas_ramo
 
 

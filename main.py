@@ -56,206 +56,203 @@ def main(request):
     erp_type = erp.get('erp_type', 'ebroker')
 
     
-    #pasame el siguiente if a un switch case    
-    match erp_type:
-        case 'ebroker':
-            #Inicializar
-            client = ebroker_functions.EBrokerClient(client_id=client_id)
-            client.login(user, password)
-        case _:
-            #Default
-            client = ebroker_functions.EBrokerClient(client_id=client_id)
-            client.login(user, password)
+    try:
+        match erp_type:
+            case 'ebroker':
+                #Inicializar
+                client = ebroker_functions.EBrokerClient(client_id=client_id)
+                client.login(user, password)
+            case _:
+                #Default
+                client = ebroker_functions.EBrokerClient(client_id=client_id)
+                client.login(user, password)
+    except Exception as e:
+        print(f"[ERROR] Connection to ERP failed: {e}")
+        return {'error': f'Error conectando con el ERP: {str(e)}'}, 500
 
 
     #========== MÉTODOS TOOL ==========
-    #CLIENTES    
-    if option == 'detalle_cliente':
-        cliente = client.get_customer_by_nif(nif)
-        print(cliente)
-        return cliente
+    try:
+        #CLIENTES    
+        if option == 'detalle_cliente':
+            cliente = client.get_customer_by_nif(nif)
+            print(cliente)
+            return cliente
 
-    #SINIESTROS
-    #Necesita otro dato en el JSON de entrada 'nif_cliente'
-    if option == 'get_claims':
-        siniestros_cliente = client.get_customer_claims_by_category(nif,lines)
-        return siniestros_cliente
+        #SINIESTROS
+        #Necesita otro dato en el JSON de entrada 'nif_cliente'
+        if option == 'get_claims':
+            siniestros_cliente = client.get_customer_claims_by_category(nif,lines)
+            return siniestros_cliente
 
-    if option == 'get_status_claims':
-        siniestros = client.get_claim_status(id_siniestro)
-        return siniestros 
+        if option == 'get_status_claims':
+            siniestros = client.get_claim_status(id_siniestro)
+            return siniestros 
 
-    if option == 'get_new_flagged_claims': 
-        siniestros = client.get_new_flagged_claims()
-        seguimiento_siniestros = []
-        url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
-        for siniestro in siniestros:
-            
-            payload_search = {
-                "company_id": company_id,
-                "action": "contacts",
-                "option": "search",
-                "nif": siniestro.get('nif')
-            }
+        if option == 'get_new_flagged_claims': 
+            siniestros = client.get_new_flagged_claims()
+            seguimiento_siniestros = []
+            url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
+            for siniestro in siniestros:
+                
+                payload_search = {
+                    "company_id": company_id,
+                    "action": "contacts",
+                    "option": "search",
+                    "nif": siniestro.get('nif')
+                }
 
-            try:
-                res_zoa = requests.post(url, json=payload_search, timeout=10)
-                res_zoa.raise_for_status()
-                datos_zoa = res_zoa.json()
-                client_phone = datos_zoa.get('phone')
-            except Exception as e:
-                print(f"Error buscando cliente de siniestro en Zoa: {e}")
-                continue
+                try:
+                    res_zoa = requests.post(url, json=payload_search, timeout=10)
+                    res_zoa.raise_for_status()
+                    datos_zoa = res_zoa.json()
+                    client_phone = datos_zoa.get('phone')
+                except Exception as e:
+                    print(f"Error buscando cliente de siniestro en Zoa: {e}")
+                    continue
 
-            payload_send = {
-                "company_id": company_id,
-                "action": "conversations",
-                "option": "send",
-                "phone": client_phone,
-                "template_name": siniestro.get('plantilla'),
-                "type": "template",
-                "params": siniestro.get('params'),
-                "image": "", "audio": "", "video": "", "document": "", "location": ""
-            }
+                payload_send = {
+                    "company_id": company_id,
+                    "action": "conversations",
+                    "option": "send",
+                    "phone": client_phone,
+                    "template_name": siniestro.get('plantilla'),
+                    "type": "template",
+                    "params": siniestro.get('params'),
+                    "image": "", "audio": "", "video": "", "document": "", "location": ""
+                }
 
-            try:
-                res_envio = requests.post(url, json=payload_send, timeout=10)
-                print(f"Siniestro {siniestro.get('desc_siniestro')} enviado: {res_envio.json()}")
-            except Exception as e:
-                print(f"Error enviando mensaje de siniestro: {e}")
+                try:
+                    res_envio = requests.post(url, json=payload_send, timeout=10)
+                    print(f"Siniestro {siniestro.get('desc_siniestro')} enviado: {res_envio.json()}")
+                except Exception as e:
+                    print(f"Error enviando mensaje de siniestro: {e}")
 
-            seguimiento_siniestros.append({
-                'desc_siniestro': siniestro.get('desc_siniestro'),
-                'client_name': nombre,
-                'gestor': gestor
-            })
+                seguimiento_siniestros.append({
+                    'desc_siniestro': siniestro.get('desc_siniestro'),
+                    'client_name': nombre,
+                    'gestor': gestor
+                })
 
-        return seguimiento_siniestros
-    
-    '''
-    #Recibo nif y un JSON "datos_siniestro" con procedure,blame,num_poliza,incidence_date
-    if option == "apertura_siniestro":
-        datos_siniestro = request_json.get('datos_siniestro')
-        num_poliza = datos_siniestro.get('num_poliza')
-        id_poliza = client_business.get_policy_by_docno(num_poliza).get('id')
-        nif = request_json.get('nif')
-        payload_send = {
-            "procedure" : datos_siniestro.get('procedure'),
-            "blame" : datos_siniestro.get('blame'),
-            "policy_id" : id_poliza,
-            "incidence_date" : datos_siniestro.get('incidence_date')
-        }
-        return client.create_claim(payload_send)
-    '''
-
-    #POLIZAS (Consulta, Tlf. Asistencia)
-    #Tlf. Asistencia
-    if option == 'get_policies':
-        print(f"[DEBUG] main.py: Processing 'get_policies' option with nif={nif}, lines={lines}")
-
-        # Obtener pólizas del cliente ID del ramo indicado
-        polizas_vigentes = client.get_all_policys_by_client_category(nif,lines)
-        print(f"[DEBUG] main.py: get_all_policys_by_client_category returned {len(polizas_vigentes) if polizas_vigentes else 0} policies")
-        return polizas_vigentes
-
-    #ELIMINAR AL TERMINAR PRUEBAS
-    if option == 'get_policy_by_num':
-        print(f"[DEBUG] main.py: Processing 'get_policy_by_num' option with num_poliza={num_poliza}")
-        try:
-            return client.get_policy_by_num(num_poliza)
-        except Exception as e:
-            print(f"[ERROR] main.py: Failed to get policy {num_poliza}: {e}")
-            return {'error': str(e)}, 500
-    #------------------------
-
-    #Consulta
-    if option == 'get_doc_policies':
-        print(f"[DEBUG] main.py: Processing 'get_doc_policies' option with num_poliza={num_poliza}")
-        return client.get_policy_doc_by_policynum(num_poliza)
-
-    #RECIBOS (Impagos, Duplicado recibo, Renovaciones)
-    #Impagos
-    if option == 'info_banco_devolucion':
-        api_poliza = client.get_policy_by_num(num_poliza)
-        cust_banks = api_poliza.get('customer').get('bank_accounts')
-
-        cust_acc_num = 0
-        for cust_bank in cust_banks:
-            if cust_bank.get('default_account') == True:
-                cust_acc_num = cust_bank.get('account_number')
-                break
-        return cust_acc_num
-
-    #Duplicado recibo
-    if option == 'documento_recibo':
-        ultimo_recibo = None
-        fecha_ultimo_recibo = None
-        recibos= client.get_doc_receipts_by_num_policy(num_poliza)
-        for recibo in recibos:
-            if fecha_ultimo_recibo == None or fecha_ultimo_recibo>recibo.get('created_date'):
-                ultimo_recibo = recibo
-                fecha_ultimo_recibo = recibo.get('created_date')
+            return seguimiento_siniestros
         
-        if ultimo_recibo == None:
-            return []
-        else:
-            return ultimo_recibo
-
-    #Renovaciones
-    if option == 'renovaciones_auto_semana':
-        url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
-        renovaciones_vigentes = []
-        renovaciones = client.get_renewals_lable(start_date,frequency)
-        for renovacion in renovaciones:
-            nif = renovacion.get('nif')
-            ramo = renovacion.get('ramo')
-            nombre = renovacion.get('nombre')
-            riesgo = renovacion.get('riesgo')
-            prima = renovacion.get('prima')
-            plantilla = renovacion.get('plantilla')
-            gestor = renovacion.get('gestor')
-            payload_search = {
-                "company_id": company_id,
-                "action": "contacts",
-                "option": "search",
-                "nif": nif
-            }
-                        
-            try:
-                res_zoa = requests.post(url, json=payload_search, timeout=10)
-                res_zoa.raise_for_status()
-                datos_zoa = res_zoa.json()
-                client_phone = datos_zoa.get('phone')
-            except Exception as e:
-                print(f"Error buscando cliente en Zoa: {e}")
-                continue
-
+        '''
+        #Recibo nif y un JSON "datos_siniestro" con procedure,blame,num_poliza,incidence_date
+        if option == "apertura_siniestro":
+            datos_siniestro = request_json.get('datos_siniestro')
+            num_poliza = datos_siniestro.get('num_poliza')
+            id_poliza = client_business.get_policy_by_docno(num_poliza).get('id')
+            nif = request_json.get('nif')
             payload_send = {
-                "company_id": company_id,
-                "action": "conversations",
-                "option": "send",
-                "phone": client_phone,
-                "template_name": plantilla,
-                "type": "template",
-                "params": f"{nombre};{riesgo};{ramo};{prima}",
-                "image": "", "audio": "", "video": "", "document": "", "location": ""
+                "procedure" : datos_siniestro.get('procedure'),
+                "blame" : datos_siniestro.get('blame'),
+                "policy_id" : id_poliza,
+                "incidence_date" : datos_siniestro.get('incidence_date')
             }
+            return client.create_claim(payload_send)
+        '''
 
-            try:
-                template_enviado = requests.post(url, json=payload_send, timeout=10)
-                print(f"Resultado envío: {template_enviado.json()}")
-            except Exception as e:
-                print(f"Error enviando template: {e}")
+        # POLIZAS
+        if option == 'get_policies':
+            return client.get_all_policys_by_client_category(nif, lines)
 
-            # Añadir a la lista de retorno
-            gestor = json_cliente.get('management_user', {})
-            renovaciones_vigentes.append({
-                'client_nif': nif,
-                'client_name': nombre,
-                'gestor': gestor if gestor else 'Sin gestor'
-            })
+        #ELIMINAR AL TERMINAR PRUEBAS
+        if option == 'get_policy_by_num':
+            return client.get_policy_by_num(num_poliza)
+        #------------------------
 
-        return renovaciones_vigentes
+        #Consulta
+        if option == 'get_doc_policies':
+            return client.get_policy_doc_by_policynum(num_poliza)
+
+        #RECIBOS (Impagos, Duplicado recibo, Renovaciones)
+        #Impagos
+        if option == 'info_banco_devolucion':
+            api_poliza = client.get_policy_by_num(num_poliza)
+            cust_banks = api_poliza.get('customer').get('bank_accounts')
+
+            cust_acc_num = 0
+            for cust_bank in cust_banks:
+                if cust_bank.get('default_account') == True:
+                    cust_acc_num = cust_bank.get('account_number')
+                    break
+            return cust_acc_num
+
+        #Duplicado recibo
+        if option == 'documento_recibo':
+            ultimo_recibo = None
+            fecha_ultimo_recibo = None
+            recibos= client.get_doc_receipts_by_num_policy(num_poliza)
+            for recibo in recibos:
+                if fecha_ultimo_recibo == None or fecha_ultimo_recibo>recibo.get('created_date'):
+                    ultimo_recibo = recibo
+                    fecha_ultimo_recibo = recibo.get('created_date')
+            
+            if ultimo_recibo == None:
+                return []
+            else:
+                return ultimo_recibo
+
+        #Renovaciones
+        if option == 'renovaciones_auto_semana':
+            url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
+            renovaciones_vigentes = []
+            renovaciones = client.get_renewals_lable(start_date,frequency)
+            for renovacion in renovaciones:
+                nif = renovacion.get('nif')
+                ramo = renovacion.get('ramo')
+                nombre = renovacion.get('nombre')
+                riesgo = renovacion.get('riesgo')
+                prima = renovacion.get('prima')
+                plantilla = renovacion.get('plantilla')
+                gestor = renovacion.get('gestor')
+                payload_search = {
+                    "company_id": company_id,
+                    "action": "contacts",
+                    "option": "search",
+                    "nif": nif
+                }
+                            
+                try:
+                    res_zoa = requests.post(url, json=payload_search, timeout=10)
+                    res_zoa.raise_for_status()
+                    datos_zoa = res_zoa.json()
+                    client_phone = datos_zoa.get('phone')
+                except Exception as e:
+                    print(f"Error buscando cliente en Zoa: {e}")
+                    continue
+
+                payload_send = {
+                    "company_id": company_id,
+                    "action": "conversations",
+                    "option": "send",
+                    "phone": client_phone,
+                    "template_name": plantilla,
+                    "type": "template",
+                    "params": f"{nombre};{riesgo};{ramo};{prima}",
+                    "image": "", "audio": "", "video": "", "document": "", "location": ""
+                }
+
+                try:
+                    template_enviado = requests.post(url, json=payload_send, timeout=10)
+                    print(f"Resultado envío: {template_enviado.json()}")
+                except Exception as e:
+                    print(f"Error enviando template: {e}")
+
+                # Añadir a la lista de retorno
+                gestor = json_cliente.get('management_user', {})
+                renovaciones_vigentes.append({
+                    'client_nif': nif,
+                    'client_name': nombre,
+                    'gestor': gestor if gestor else 'Sin gestor'
+                })
+
+            return renovaciones_vigentes
+
+    except Exception as e:
+        print(f"[CRITICAL ERROR] Error during option '{option}': {e}")
+        return {'error': f"Error ejecutando la operación {option}: {str(e)}"}, 500
+
 
 
 
