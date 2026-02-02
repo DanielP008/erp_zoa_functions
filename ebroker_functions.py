@@ -241,7 +241,7 @@ class EBrokerClient:
         resultado = []
         api_poliza = self.get_policy_by_num(policy_num)
         if api_poliza and len(api_poliza) > 0:
-            documentos_poliza = api_poliza[0].get('documents', {})
+            documentos_poliza = api_poliza[0].get('documents', [])
             for documento_poliza in documentos_poliza:
                 doc_id = documento_poliza.get('id')
                 try:

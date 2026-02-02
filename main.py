@@ -1,5 +1,6 @@
 import functions_framework
 import ebroker_functions
+import database_functions
 import json
 import firebase_admin
 from firebase_admin import db,credentials,storage,firestore
@@ -42,27 +43,18 @@ def main(request):
 
 
 
-    #Cargar datos Firebase
-    firestore_db = firestore.client()
-    doc_ref = firestore_db.collection(u'waba_accounts').where(u'phones_ids', u'array_contains', company_id).get()[0]
-    print(doc_ref)
-    values = doc_ref.to_dict()
-    print(values,'values')
+    # Cargar datos Firebase
+    domain_info = database_functions.get_company_config(company_id)
 
-    domain_info = next((d for d in values['domains'] if d['phone_id'] == company_id), None)
+    if not domain_info:
+        return {"error": f"Configuración no encontrada para company_id: {company_id}"}, 404
 
-    erp = ""
-    password = ""
-    user = ""
-    client_id = ""
-    erp_type = ""
+    erp = domain_info.get('erp', {})
+    password = erp.get('password')
+    user = erp.get('user')
+    client_id = erp.get('client_id')
+    erp_type = erp.get('erp_type', 'ebroker')
 
-    if domain_info:
-        erp = domain_info['erp']
-        password = erp['password']
-        user = erp['user']
-        client_id = erp['client_id']
-        erp_type = erp['erp_type']
     
     #pasame el siguiente if a un switch case    
     match erp_type:
@@ -169,7 +161,11 @@ def main(request):
     #ELIMINAR AL TERMINAR PRUEBAS
     if option == 'get_policy_by_num':
         print(f"[DEBUG] main.py: Processing 'get_policy_by_num' option with num_poliza={num_poliza}")
-        return client.get_policy_by_num(num_poliza)
+        try:
+            return client.get_policy_by_num(num_poliza)
+        except Exception as e:
+            print(f"[ERROR] main.py: Failed to get policy {num_poliza}: {e}")
+            return {'error': str(e)}, 500
     #------------------------
 
     #Consulta
