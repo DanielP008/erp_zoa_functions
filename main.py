@@ -67,6 +67,7 @@ def main(request):
     try:
         #CLIENTES    
         if option == 'detalle_cliente':
+            if not nif: return {"error": "Falta parámetro obligatorio: nif"}, 400
             cliente = client.get_customer_by_nif(nif)
             print(cliente)
             return cliente
@@ -74,10 +75,12 @@ def main(request):
         #SINIESTROS
         #Necesita otro dato en el JSON de entrada 'nif_cliente'
         if option == 'get_claims':
+            if not nif: return {"error": "Falta parámetro obligatorio: nif"}, 400
             siniestros_cliente = client.get_customer_claims_by_category(nif,lines)
             return siniestros_cliente
 
         if option == 'get_status_claims':
+            if not id_siniestro: return {"error": "Falta parámetro obligatorio: id_siniestro"}, 400
             siniestros = client.get_claim_status(id_siniestro)
             return siniestros 
 
@@ -146,20 +149,24 @@ def main(request):
 
         # POLIZAS
         if option == 'get_policies':
+            if not nif: return {"error": "Falta parámetro obligatorio: nif"}, 400
             return client.get_all_policys_by_client_category(nif, lines)
 
         #ELIMINAR AL TERMINAR PRUEBAS
         if option == 'get_policy_by_num':
+            if not num_poliza: return {"error": "Falta parámetro obligatorio: num_poliza"}, 400
             return client.get_policy_by_num(num_poliza)
         #------------------------
 
         #Consulta
         if option == 'get_doc_policies':
+            if not num_poliza: return {"error": "Falta parámetro obligatorio: num_poliza"}, 400
             return client.get_policy_doc_by_policynum(num_poliza)
 
         #RECIBOS (Impagos, Duplicado recibo, Renovaciones)
         #Impagos
         if option == 'info_banco_devolucion':
+            if not num_poliza: return {"error": "Falta parámetro obligatorio: num_poliza"}, 400
             api_poliza = client.get_policy_by_num(num_poliza)
             cust_banks = api_poliza.get('customer').get('bank_accounts')
 
@@ -172,6 +179,7 @@ def main(request):
 
         #Duplicado recibo
         if option == 'documento_recibo':
+            if not num_poliza: return {"error": "Falta parámetro obligatorio: num_poliza"}, 400
             ultimo_recibo = None
             fecha_ultimo_recibo = None
             recibos= client.get_doc_receipts_by_num_policy(num_poliza)
