@@ -169,6 +169,26 @@ class EBrokerClient:
                 })
         return claims_ramo
 
+    def get_claim_by_risk(self, nif: str, risk: str) -> List[Dict]:
+        customers = self.get_customer_by_nif(nif)
+        if not customers:
+            return []  # Return empty list if no customer found
+
+        customer_id = customers[0].get('id')
+        if not customer_id:
+            return []  # Return empty list if customer has no ID
+        claims = self._make_request("crm", "GET", f"/v1/customers/{customer_id}/claims")
+        claims_ramo = []
+        for claim in claims:
+            if risk.lower() in claim.get('policy', {}).get('risk', '').lower() :
+                claims_ramo.append({
+                    'id': claim.get('id', ''),
+                    'opening_date': claim.get('opening_date', ''),
+                    'risk': claim.get('policy', {}).get('risk', ''),
+                    'status':claim.get('status', {}).get('description', '')
+                })
+        return claims_ramo
+
     # ========== Business methods used by main.py ==========
 
     def get_claim_labels(self, claim_id: int) -> List[Dict]:

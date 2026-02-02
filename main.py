@@ -39,7 +39,8 @@ def main(request):
     start_date = request_json.get('start_date', '')
     frequency = request_json.get('frequency', 7)
     lines = request_json.get('lines', '')
-    id_siniestro = request_json.get('id_siniestro')
+    id_siniestro = request_json.get('id_siniestro', '')
+    risk = request_json.get('risk', '')
 
 
 
@@ -77,6 +78,11 @@ def main(request):
             if not nif: return {"error": "Falta parámetro obligatorio: nif"}, 400
             siniestros_cliente = client.get_customer_claims_by_category(nif,lines)
             return siniestros_cliente
+
+        if option == 'get_claim_by_risk':
+            if not risk: return {"error": "Falta parámetro obligatorio: risk"}, 400
+            siniestro = client.get_claim_by_risk(nif,risk)
+            return siniestro
 
         if option == 'get_status_claims':
             if not id_siniestro: return {"error": "Falta parámetro obligatorio: id_siniestro"}, 400
