@@ -164,20 +164,12 @@ class EBrokerClient:
                 claims_ramo.append({
                     'id': claim.get('id', ''),
                     'opening_date': claim.get('opening_date', ''),
-                    'risk': claim.get('risk', ''),
+                    'risk': claim.get('policy', {}).get('risk', ''),
                     'status':claim.get('status', {}).get('description', '')
                 })
         return claims_ramo
 
     # ========== Business methods used by main.py ==========
-    def get_claims(self, query: Optional[str] = None, sort: Optional[str] = None,
-                   order: str = "ASC", page: int = 0, size: int = 20) -> List[Dict]:
-        params = {"page": page, "size": size, "order": order}
-        if query:
-            params["query"] = query
-        if sort:
-            params["sort"] = sort
-        return self._make_request("business", "GET", "/v1/claims", params=params)
 
     def get_claim_labels(self, claim_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/claims/{claim_id}/labels")
