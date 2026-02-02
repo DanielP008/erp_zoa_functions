@@ -164,7 +164,8 @@ class EBrokerClient:
                 claims_ramo.append({
                     'id': claim.get('id', ''),
                     'opening_date': claim.get('opening_date', ''),
-                    'risk': claim.get('risk', '')
+                    'risk': claim.get('risk', ''),
+                    'status':claim.get('status', {}).get('description', '')
                 })
         return claims_ramo
 

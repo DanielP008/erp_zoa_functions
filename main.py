@@ -59,7 +59,6 @@ def main(request):
         if not client:
             return {"error": "Error conectando con el ERP (Login fallido)"}, 500
     except Exception as e:
-        print(f"[ERROR] Connection to ERP failed: {e}")
         return {'error': f'Error conectando con el ERP: {str(e)}'}, 500
 
 
@@ -250,7 +249,6 @@ def main(request):
             return renovaciones_vigentes
 
     except Exception as e:
-        print(f"[CRITICAL ERROR] Error during option '{option}': {e}")
         return {'error': f"Error ejecutando la operación {option}: {str(e)}"}, 500
 
 
@@ -270,5 +268,4 @@ def get_nif_by_phone(phone):
         datos_zoa = res_zoa.json()
         return datos_zoa.get('nif')
     except Exception as e:
-        print(f"Error buscando cliente en Zoa: {e}")
-        return None
+        return (f"Error buscando cliente en Zoa: {e}")
