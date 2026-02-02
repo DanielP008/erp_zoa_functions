@@ -1,5 +1,5 @@
 import functions_framework
-import ebroker_functions
+import erp_auth
 import database_functions
 import json
 import firebase_admin
@@ -49,23 +49,10 @@ def main(request):
     if not domain_info:
         return {"error": f"Configuración no encontrada para company_id: {company_id}"}, 404
 
-    erp = domain_info.get('erp', {})
-    password = erp.get('password')
-    user = erp.get('user')
-    client_id = erp.get('client_id')
-    erp_type = erp.get('erp_type', 'ebroker')
-
-    
     try:
-        match erp_type:
-            case 'ebroker':
-                #Inicializar
-                client = ebroker_functions.EBrokerClient(client_id=client_id)
-                client.login(user, password)
-            case _:
-                #Default
-                client = ebroker_functions.EBrokerClient(client_id=client_id)
-                client.login(user, password)
+        client = erp_auth.get_erp_client(domain_info)
+        if not client:
+            return {"error": "Error conectando con el ERP (Login fallido)"}, 500
     except Exception as e:
         print(f"[ERROR] Connection to ERP failed: {e}")
         return {'error': f'Error conectando con el ERP: {str(e)}'}, 500
