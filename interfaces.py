@@ -16,6 +16,10 @@ class GetPoliciesRequest(BaseRequest): # option: 'get_policies'
 class GetClaimsRequest(BaseRequest): # option: 'get_claims'
     nif: str         # Obligatorio
 
+class GetClaimByRiskRequest(BaseRequest): # option: 'get_claim_by_risk'
+    nif: str         # Obligatorio
+    risk: str        # Obligatorio
+
 class GetDocPoliciesRequest(BaseRequest): # option: 'get_doc_policies'
     num_poliza: str  # Obligatorio
 
@@ -40,6 +44,12 @@ class GetStatusClaimsRequest(BaseRequest): # option: 'get_status_claims'
 # --- INTERFACES DE SALIDA (RESPUESTAS) ---
 
 class GetClaimsResponse(TypedDict): # option: 'get_claims'
+    id: str
+    opening_date: str
+    risk: str
+    status: str
+
+class GetClaimByRiskResponse(TypedDict): # option: 'get_claim_by_risk'
     id: str
     opening_date: str
     risk: str
