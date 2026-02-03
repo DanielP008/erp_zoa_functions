@@ -259,8 +259,7 @@ class EBrokerClient:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
 
     def get_receipts_for_specific_date(self, date) -> List[Dict]:
-        params = {"query": f"due_date:{date}"}
-        return self._make_request("business", "GET", "/v1/receipts", params=params)
+        return self._make_request("business", "GET", f"/v1/receipts?query=dueDate:{date}")
 
     def get_upcoming_receipts(self, start_date=None, frequency: int = 7):
         if not start_date:
@@ -269,9 +268,17 @@ class EBrokerClient:
             try:
                 start_date = datetime.strptime(start_date, "%Y-%m-%d")
             except ValueError:
-                # Si el formato falla, fallback a hoy o manejar error
-                print(f"[WARNING] Invalid date format {start_date}, defaulting to today.")
-                start_date = datetime.now()
+                # Intentar corregir formato con días/meses sin zero-padding (ej: 2001-2-9 -> 2001-02-09)
+                try:
+                    parts = start_date.split('-')
+                    if len(parts) == 3:
+                        fixed_date = f"{parts[0]}-{parts[1].zfill(2)}-{parts[2].zfill(2)}"
+                        start_date = datetime.strptime(fixed_date, "%Y-%m-%d")
+                    else:
+                        raise ValueError
+                except ValueError:
+                    print(f"[WARNING] Invalid date format {start_date}, defaulting to today.")
+                    start_date = datetime.now()
 
         master_receipt_list = []
         for i in range(frequency):
