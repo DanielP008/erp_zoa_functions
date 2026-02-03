@@ -258,6 +258,54 @@ class EBrokerClient:
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
 
+    def get_receipts_for_specific_date(self, date) -> List[Dict]:
+        params = {"query": f"due_date:{date}"}
+        return self._make_request("business", "GET", "/v1/receipts", params=params)
+
+    def get_upcoming_receipts(self, start_date=None, frequency: int = 7):
+        if start_date is None:
+            start_date = datetime.now()
+        master_receipt_list = []
+        for i in range(frequency):
+            current_date = start_date + timedelta(days=i)
+            date_str = current_date.strftime("%Y-%m-%d")
+            receipts_day = self.get_receipts_for_specific_date(date_str)
+            master_receipt_list.extend(receipts_day)
+        return master_receipt_list
+    
+    def get_receipt_labels(self, receipt_id: int) -> List[Dict]:
+        return self._make_request("business", "GET", f"/v1/receipts/{receipt_id}/labels")
+
+    def get_receipts_label(self, start_date, frequency):
+        if start_date is None:
+            start_date = datetime.now()
+        result = []
+        recibos = self.get_upcoming_receipts(start_date, frequency)
+        for recibo in recibos:
+            cliente = recibo.get('customer', {})
+            lbls = self.get_receipt_labels(recibo.get('id'))
+            for lbl in lbls:
+                if lbl:
+                    nombre = str(cliente.get('name', ''))
+                    # En recibos el ramo viene dentro de policy -> subcategory -> name
+                    ramo = str(recibo.get('policy', {}).get('subcategory', {}).get('name', '') + ' ' + recibo.get('policy', {}).get('subcategory', {}).get('category', {}).get('name', ''))
+                    riesgo = str(recibo.get('risk', ''))
+                    prima = str(recibo.get('total_premium', ''))
+                    nif = str(cliente.get('legal_id', ''))
+                    gestor = str(cliente.get('management_user', {})) # Ajustar si viene como dict
+                    plantilla = str(lbl.get("value"))
+                    
+                    result.append({
+                        'nif': nif,
+                        'ramo': ramo,
+                        'nombre': nombre,
+                        'riesgo': riesgo,
+                        'prima': prima,
+                        'plantilla': plantilla,
+                        'gestor': gestor
+                    })
+        return result
+
     def get_doc_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         result = []
         recibos = self.get_receipts_by_num_policy(num_poliza)

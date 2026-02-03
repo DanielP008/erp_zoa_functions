@@ -254,6 +254,65 @@ def main(request):
 
             return renovaciones_vigentes
 
+        if option == 'renovaciones_recibos':
+            url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
+            renovaciones_vigentes = []
+            renovaciones = client.get_receipts_label(start_date, frequency)
+            for renovacion in renovaciones:
+                nif = renovacion.get('nif')
+                ramo = renovacion.get('ramo')
+                nombre = renovacion.get('nombre')
+                riesgo = renovacion.get('riesgo')
+                prima = renovacion.get('prima')
+                plantilla = renovacion.get('plantilla')
+                gestor = renovacion.get('gestor')
+                payload_search = {
+                    "company_id": company_id,
+                    "action": "contacts",
+                    "option": "search",
+                    "nif": nif
+                }
+                #COMENTADO PARA PROBAR
+                '''            
+                try:
+                    res_zoa = requests.post(url, json=payload_search, timeout=10)
+                    res_zoa.raise_for_status()
+                    datos_zoa = res_zoa.json()
+                    client_phone = datos_zoa.get('phone')
+                except Exception as e:
+                    print(f"Error buscando cliente en Zoa: {e}")
+                    continue
+
+                payload_send = {
+                    "company_id": company_id,
+                    "action": "conversations",
+                    "option": "send",
+                    "phone": client_phone,
+                    "template_name": plantilla,
+                    "type": "template",
+                    "params": f"{nombre};{riesgo};{ramo};{prima}",
+                    "image": "", "audio": "", "video": "", "document": "", "location": ""
+                }
+
+                try:
+                    template_enviado = requests.post(url, json=payload_send, timeout=10)
+                    print(f"Resultado envío: {template_enviado.json()}")
+                except Exception as e:
+                    print(f"Error enviando template: {e}")
+                '''
+                # Añadir a la lista de retorno
+                renovaciones_vigentes.append({
+                    'client_nif': nif,
+                    'client_name': nombre,
+                    'gestor': gestor if gestor else 'Sin gestor',
+                    'riesgo': riesgo,
+                    'ramo': ramo,
+                    'prima': prima,
+                    'plantilla': plantilla
+                })
+
+            return renovaciones_vigentes
+
     except Exception as e:
         return {'error': f"Error ejecutando la operación {option}: {str(e)}"}, 500
 

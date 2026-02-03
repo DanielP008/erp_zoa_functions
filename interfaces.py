@@ -36,6 +36,10 @@ class RenovacionesAutoSemanaRequest(BaseRequest): # option: 'renovaciones_auto_s
     start_date: Optional[str] 
     frequency: Optional[int]   
 
+class RenovacionesRecibosRequest(BaseRequest): # option: 'renovaciones_recibos'
+    start_date: Optional[str]
+    frequency: Optional[int]
+
 class GetStatusClaimsRequest(BaseRequest): # option: 'get_status_claims'
     id_siniestro: int # Obligatorio
 
@@ -73,6 +77,11 @@ class DocumentoReciboResponse(TypedDict): # option: 'documento_recibo'
     data: str # Base64
 
 class RenovacionesAutoSemanaResponse(TypedDict): # option: 'renovaciones_auto_semana'
+    client_nif: str
+    client_name: str
+    gestor: str # O Dict
+
+class RenovacionesRecibosResponse(TypedDict): # option: 'renovaciones_recibos'
     client_nif: str
     client_name: str
     gestor: str # O Dict
