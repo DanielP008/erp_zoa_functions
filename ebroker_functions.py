@@ -263,8 +263,16 @@ class EBrokerClient:
         return self._make_request("business", "GET", "/v1/receipts", params=params)
 
     def get_upcoming_receipts(self, start_date=None, frequency: int = 7):
-        if start_date is None:
+        if not start_date:
             start_date = datetime.now()
+        elif isinstance(start_date, str):
+            try:
+                start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                # Si el formato falla, fallback a hoy o manejar error
+                print(f"[WARNING] Invalid date format {start_date}, defaulting to today.")
+                start_date = datetime.now()
+
         master_receipt_list = []
         for i in range(frequency):
             current_date = start_date + timedelta(days=i)
