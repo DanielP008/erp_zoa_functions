@@ -277,7 +277,6 @@ class EBrokerClient:
                     else:
                         raise ValueError
                 except ValueError:
-                    print(f"[WARNING] Invalid date format {start_date}, defaulting to today.")
                     start_date = datetime.now()
 
         master_receipt_list = []
@@ -296,14 +295,7 @@ class EBrokerClient:
             start_date = datetime.now()
         result = []
         recibos = self.get_upcoming_receipts(start_date, frequency)
-        print(f"[DEBUG] Found {len(recibos)} receipts for processing in {frequency} days range.")
-        
-        count = 0
         for recibo in recibos:
-            count += 1
-            if count % 10 == 0:
-                print(f"[DEBUG] Processing receipt {count}/{len(recibos)}")
-
             cliente = recibo.get('customer', {})
             lbls = self.get_receipt_labels(recibo.get('id'))
             for lbl in lbls:
