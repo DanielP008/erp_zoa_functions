@@ -134,8 +134,8 @@ class EBrokerClient:
             category_name = p.get('subcategory', {}).get('category', {}).get('name', '').lower().replace('.', '')
             ramo_normalized = ramo.lower().replace('.', '')
 
-            #TODO REACTIVAR V
-            #if status_id == 'V':
+            # TODO RE-ENABLE V
+            # if status_id == 'V':
             if ramo_normalized in subcategory_name or ramo_normalized in category_name:
                 company_name = p.get('company', {}).get('name', '')
                 company_id = p.get('company', {}).get('id', '')
@@ -268,7 +268,7 @@ class EBrokerClient:
             try:
                 start_date = datetime.strptime(start_date, "%Y-%m-%d")
             except ValueError:
-                # Intentar corregir formato con días/meses sin zero-padding (ej: 2001-2-9 -> 2001-02-09)
+                # Try to correct format with days/months without zero-padding (e.g., 2001-2-9 -> 2001-02-09)
                 try:
                     parts = start_date.split('-')
                     if len(parts) == 3:
@@ -301,12 +301,12 @@ class EBrokerClient:
             for lbl in lbls:
                 if lbl:
                     nombre = str(cliente.get('name', ''))
-                    # En recibos el ramo viene dentro de policy -> subcategory -> name
+                    # In receipts, the line (ramo) is inside policy -> subcategory -> name
                     ramo = str(recibo.get('policy', {}).get('subcategory', {}).get('name', '') + ' ' + recibo.get('policy', {}).get('subcategory', {}).get('category', {}).get('name', ''))
                     riesgo = str(recibo.get('risk', ''))
                     prima = str(recibo.get('total_premium', ''))
                     nif = str(cliente.get('legal_id', ''))
-                    gestor = str(cliente.get('management_user', {})) # Ajustar si viene como dict
+                    gestor = str(cliente.get('management_user', {})) # Adjust if it comes as dict
                     plantilla = str(lbl.get("value"))
                     
                     result.append({
@@ -390,7 +390,7 @@ def get_phones(company_name):
     
     company_clean = company_name.lower().replace('_', ' ')
     
-    # 1. Alias manuales para casos que no coinciden por nombre (ej: cambio de marca)
+    # 1. Manual aliases for cases that don't match by name (e.g., brand change)
     aliases = {
         'occident': 'catalana_occidente'
     }
@@ -399,7 +399,7 @@ def get_phones(company_name):
         if alias_key in company_clean:
              return company_phones.get(target_key, {})
 
-    # 2. Búsqueda laxa: Ver si alguna clave del JSON está contenida en el nombre de la compañía
+    # 2. Loose search: See if any JSON key is contained within the company name
     for key, phones in company_phones.items():
         key_normalized = key.replace('_', ' ')
         if key_normalized in company_clean:

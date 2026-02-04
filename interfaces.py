@@ -1,36 +1,36 @@
 from typing import TypedDict, Optional, List, Union, Dict
 
-# --- INTERFACES DE DATOS (DOCUMENTACIÓN DE CÓDIGO) ---
+# --- DATA INTERFACES (CODE DOCUMENTATION) ---
 
 class BaseRequest(TypedDict):
-    company_id: str  # Obligatorio
-    option: str      # Obligatorio
+    company_id: str  # Mandatory
+    option: str      # Mandatory
 
 class DetalleClienteRequest(BaseRequest): # option: 'detalle_cliente'
-    nif: str         # Obligatorio
+    nif: str         # Mandatory
 
 class GetPoliciesRequest(BaseRequest): # option: 'get_policies'
-    nif: str         # Obligatorio
-    lines: Optional[str] # Opcional
+    nif: str         # Mandatory
+    lines: Optional[str] # Optional
 
 class GetClaimsRequest(BaseRequest): # option: 'get_claims'
-    nif: str         # Obligatorio
+    nif: str         # Mandatory
 
 class GetClaimByRiskRequest(BaseRequest): # option: 'get_claim_by_risk'
-    nif: str         # Obligatorio
-    risk: str        # Obligatorio
+    nif: str         # Mandatory
+    risk: str        # Mandatory
 
 class GetDocPoliciesRequest(BaseRequest): # option: 'get_doc_policies'
-    num_poliza: str  # Obligatorio
+    num_poliza: str  # Mandatory
 
 class GetPolicyByNumRequest(BaseRequest): # option: 'get_policy_by_num'
-    num_poliza: str  # Obligatorio
+    num_poliza: str  # Mandatory
 
 class DocumentoReciboRequest(BaseRequest): # option: 'documento_recibo'
-    num_poliza: str  # Obligatorio
+    num_poliza: str  # Mandatory
 
 class InfoBancoDevolucionRequest(BaseRequest): # option: 'info_banco_devolucion'
-    num_poliza: str  # Obligatorio
+    num_poliza: str  # Mandatory
 
 class RenovacionesAutoSemanaRequest(BaseRequest): # option: 'renovaciones_auto_semana'
     start_date: Optional[str] 
@@ -41,11 +41,11 @@ class RenovacionesRecibosRequest(BaseRequest): # option: 'renovaciones_recibos'
     frequency: Optional[int]
 
 class GetStatusClaimsRequest(BaseRequest): # option: 'get_status_claims'
-    id_siniestro: int # Obligatorio
+    id_siniestro: int # Mandatory
 
 # ---------------------------------------------------
 
-# --- INTERFACES DE SALIDA (RESPUESTAS) ---
+# --- OUTPUT INTERFACES (RESPONSES) ---
 
 class GetClaimsResponse(TypedDict): # option: 'get_claims'
     id: str
@@ -79,12 +79,12 @@ class DocumentoReciboResponse(TypedDict): # option: 'documento_recibo'
 class RenovacionesAutoSemanaResponse(TypedDict): # option: 'renovaciones_auto_semana'
     client_nif: str
     client_name: str
-    gestor: str # O Dict
+    gestor: str # Or Dict
 
 class RenovacionesRecibosResponse(TypedDict): # option: 'renovaciones_recibos'
     client_nif: str
     client_name: str
-    gestor: str # O Dict
+    gestor: str # Or Dict
 
 class GetStatusClaimsResponse(TypedDict): # option: 'get_status_claims'
     Status: str

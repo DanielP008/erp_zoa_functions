@@ -27,9 +27,9 @@ def main(request):
     request_json = request.get_json(silent=True)
     
     if request_json is None:
-        print('Datos no proporcionados en formato JSON', 400)
+        return {'error': 'Data not provided in JSON format'}, 400
 
-    #Cargar datos de JSON
+    # Load data from JSON
     company_id =  request_json.get('company_id')
     option =  request_json.get('option')
     nif =  request_json.get('nif')
@@ -44,14 +44,14 @@ def main(request):
 
 
 
-    # Cargar datos Firebase
+    # Load Firebase data
     domain_info = database_functions.get_company_config(company_id)
 
     if isinstance(domain_info, dict) and "error" in domain_info:
         return domain_info, 500
 
     if not domain_info:
-        return {"error": f"Configuración no encontrada para company_id: {company_id}"}, 404
+        return {"error": f"Configuration not found for company_id: {company_id}"}, 404
 
     try:
         client = erp_auth.get_erp_client(domain_info)
@@ -63,29 +63,29 @@ def main(request):
         return {'error': f'Error conectando con el ERP: {str(e)}'}, 500
 
 
-    #========== MÉTODOS TOOL ==========
+    #========== TOOL METHODS ==========
     try:
-        #CLIENTES    
+        # CUSTOMERS    
         if option == 'detalle_cliente':
-            if not nif: return {"error": "Falta parámetro obligatorio: nif"}, 400
+            if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             cliente = client.get_customer_by_nif(nif)
             print(cliente)
             return cliente
 
-        #SINIESTROS
-        #Necesita otro dato en el JSON de entrada 'nif_cliente'
+        # CLAIMS
+        # Needs another piece of data in the input JSON 'nif_cliente'
         if option == 'get_claims':
-            if not nif: return {"error": "Falta parámetro obligatorio: nif"}, 400
+            if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             siniestros_cliente = client.get_customer_claims_by_category(nif,lines)
             return siniestros_cliente
 
         if option == 'get_claim_by_risk':
-            if not risk: return {"error": "Falta parámetro obligatorio: risk"}, 400
+            if not risk: return {"error": "Missing mandatory parameter: risk"}, 400
             siniestro = client.get_claim_by_risk(nif,risk)
             return siniestro
 
         if option == 'get_status_claims':
-            if not id_siniestro: return {"error": "Falta parámetro obligatorio: id_siniestro"}, 400
+            if not id_siniestro: return {"error": "Missing mandatory parameter: id_siniestro"}, 400
             siniestros = client.get_claim_status(id_siniestro)
             return siniestros 
 
@@ -108,7 +108,7 @@ def main(request):
                     datos_zoa = res_zoa.json()
                     client_phone = datos_zoa.get('phone')
                 except Exception as e:
-                    print(f"Error buscando cliente de siniestro en Zoa: {e}")
+                    print(f"Error searching for claim customer in Zoa: {e}")
                     continue
 
                 payload_send = {
@@ -124,9 +124,9 @@ def main(request):
 
                 try:
                     res_envio = requests.post(url, json=payload_send, timeout=10)
-                    print(f"Siniestro {siniestro.get('desc_siniestro')} enviado: {res_envio.json()}")
+                    print(f"Claim {siniestro.get('desc_siniestro')} sent: {res_envio.json()}")
                 except Exception as e:
-                    print(f"Error enviando mensaje de siniestro: {e}")
+                    print(f"Error sending claim message: {e}")
 
                 seguimiento_siniestros.append({
                     'desc_siniestro': siniestro.get('desc_siniestro'),
@@ -137,7 +137,7 @@ def main(request):
             return seguimiento_siniestros
         
         '''
-        #Recibo nif y un JSON "datos_siniestro" con procedure,blame,num_poliza,incidence_date
+        # Receive nif and a JSON "datos_siniestro" with procedure,blame,num_poliza,incidence_date
         if option == "apertura_siniestro":
             datos_siniestro = request_json.get('datos_siniestro')
             num_poliza = datos_siniestro.get('num_poliza')
@@ -152,26 +152,26 @@ def main(request):
             return client.create_claim(payload_send)
         '''
 
-        # POLIZAS
+        # POLICIES
         if option == 'get_policies':
-            if not nif: return {"error": "Falta parámetro obligatorio: nif"}, 400
+            if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             return client.get_all_policys_by_client_category(nif, lines)
 
-        #ELIMINAR AL TERMINAR PRUEBAS
+        # REMOVE AFTER TESTING
         if option == 'get_policy_by_num':
-            if not num_poliza: return {"error": "Falta parámetro obligatorio: num_poliza"}, 400
+            if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             return client.get_policy_by_num(num_poliza)
         #------------------------
 
-        #Consulta
+        # Query
         if option == 'get_doc_policies':
-            if not num_poliza: return {"error": "Falta parámetro obligatorio: num_poliza"}, 400
+            if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             return client.get_policy_doc_by_policynum(num_poliza)
 
-        #RECIBOS (Impagos, Duplicado recibo, Renovaciones)
-        #Impagos
+        # RECEIPTS (Unpaid, Duplicate receipt, Renewals)
+        # Unpaid
         if option == 'info_banco_devolucion':
-            if not num_poliza: return {"error": "Falta parámetro obligatorio: num_poliza"}, 400
+            if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             api_poliza = client.get_policy_by_num(num_poliza)
             cust_banks = api_poliza.get('customer').get('bank_accounts')
 
@@ -182,9 +182,9 @@ def main(request):
                     break
             return cust_acc_num
 
-        #Duplicado recibo
+        # Duplicate receipt
         if option == 'documento_recibo':
-            if not num_poliza: return {"error": "Falta parámetro obligatorio: num_poliza"}, 400
+            if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             ultimo_recibo = None
             fecha_ultimo_recibo = None
             recibos= client.get_doc_receipts_by_num_policy(num_poliza)
@@ -198,7 +198,7 @@ def main(request):
             else:
                 return ultimo_recibo
 
-        #Renovaciones
+        # Renewals
         if option == 'renovaciones_auto_semana':
             url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
             renovaciones_vigentes = []
@@ -224,7 +224,7 @@ def main(request):
                     datos_zoa = res_zoa.json()
                     client_phone = datos_zoa.get('phone')
                 except Exception as e:
-                    print(f"Error buscando cliente en Zoa: {e}")
+                    print(f"Error searching for customer in Zoa: {e}")
                     continue
 
                 payload_send = {
@@ -240,16 +240,16 @@ def main(request):
 
                 try:
                     template_enviado = requests.post(url, json=payload_send, timeout=10)
-                    print(f"Resultado envío: {template_enviado.json()}")
+                    print(f"Send result: {template_enviado.json()}")
                 except Exception as e:
-                    print(f"Error enviando template: {e}")
+                    print(f"Error sending template: {e}")
 
-                # Añadir a la lista de retorno
+                # Add to return list
                 gestor = json_cliente.get('management_user', {})
                 renovaciones_vigentes.append({
                     'client_nif': nif,
                     'client_name': nombre,
-                    'gestor': gestor if gestor else 'Sin gestor'
+                    'gestor': gestor if gestor else 'No manager'
                 })
 
             return renovaciones_vigentes
@@ -272,7 +272,7 @@ def main(request):
                     "option": "search",
                     "nif": nif
                 }
-                #COMENTADO PARA PROBAR
+
                 '''            
                 try:
                     res_zoa = requests.post(url, json=payload_search, timeout=10)
@@ -280,7 +280,7 @@ def main(request):
                     datos_zoa = res_zoa.json()
                     client_phone = datos_zoa.get('phone')
                 except Exception as e:
-                    print(f"Error buscando cliente en Zoa: {e}")
+                    print(f"Error searching for customer in Zoa: {e}")
                     continue
 
                 payload_send = {
@@ -296,15 +296,15 @@ def main(request):
 
                 try:
                     template_enviado = requests.post(url, json=payload_send, timeout=10)
-                    print(f"Resultado envío: {template_enviado.json()}")
+                    print(f"Send result: {template_enviado.json()}")
                 except Exception as e:
-                    print(f"Error enviando template: {e}")
+                    print(f"Error sending template: {e}")
                 '''
-                # Añadir a la lista de retorno
+                # Add to return list
                 renovaciones_vigentes.append({
                     'client_nif': nif,
                     'client_name': nombre,
-                    'gestor': gestor if gestor else 'Sin gestor',
+                    'gestor': gestor if gestor else 'No manager',
                     'riesgo': riesgo,
                     'ramo': ramo,
                     'prima': prima,
@@ -314,7 +314,7 @@ def main(request):
             return renovaciones_vigentes
 
     except Exception as e:
-        return {'error': f"Error ejecutando la operación {option}: {str(e)}"}, 500
+        return {'error': f"Error executing operation {option}: {str(e)}"}, 500
 
 
 
@@ -333,4 +333,4 @@ def get_nif_by_phone(phone):
         datos_zoa = res_zoa.json()
         return datos_zoa.get('nif')
     except Exception as e:
-        return (f"Error buscando cliente en Zoa: {e}")
+        return (f"Error searching for customer in Zoa: {e}")
