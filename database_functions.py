@@ -18,7 +18,4 @@ def get_company_config(company_id: str):
     if not docs:
         return None
         
-    values = docs[0].to_dict()
-    domain_info = next((d for d in values.get('domains', []) if d.get('phone_id') == company_id), None)
-    
-    return domain_info
+    return docs[0].to_dict()
