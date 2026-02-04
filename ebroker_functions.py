@@ -126,7 +126,7 @@ class EBrokerClient:
                 })
         return polizas_vigentes
 
-    def get_all_policys_by_client_category(self, nif: str, ramo: str) -> List[Dict]:
+    def get_all_policys_by_client_category(self, nif: str, ramo: str, company_id: str=None) -> List[Dict]:
         polizas = self.get_customer_policies(nif)
         polizas_ramo = []
         for p in polizas:

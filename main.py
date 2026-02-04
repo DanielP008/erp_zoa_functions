@@ -159,7 +159,7 @@ def main(request):
         # POLICIES
         if option == 'get_policies':
             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
-            return client.get_all_policys_by_client_category(nif, lines)
+            return client.get_all_policys_by_client_category(nif, lines,company_id)
 
         # REMOVE AFTER TESTING
         if option == 'get_policy_by_num':
