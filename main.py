@@ -65,12 +65,6 @@ def main(request):
 
     #========== TOOL METHODS ==========
     try:
-        # CUSTOMERS    
-        if option == 'detalle_cliente':
-            if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
-            cliente = client.get_customer_by_nif(nif)
-            print(cliente)
-            return cliente
 
         # CLAIMS
         # Needs another piece of data in the input JSON 'nif_cliente'
@@ -197,7 +191,7 @@ def main(request):
                 return []
             else:
                 return ultimo_recibo
-
+        ''' Comentamos por que solo queremos por renovaciones
         # Renewals
         if option == 'renovaciones_auto_semana':
             url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
@@ -253,7 +247,7 @@ def main(request):
                 })
 
             return renovaciones_vigentes
-
+        '''
         if option == 'renovaciones_recibos':
             url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
             renovaciones_vigentes = []
