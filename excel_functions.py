@@ -58,24 +58,31 @@ class GoogleSheetsClient:
     def get_all_policys_by_client_category(self, nif: str, ramo: str, company_id: str=None):
         """
         Retrieves policies for a client based on NIF and filters by category (ramo).
-        Expected columns: Num. Póliza, Alias compañía, Riesgo, Nombre completo, Descripción riesgo, Cliente.Nif
+        Searches in both 'Riesgo' and 'Descripción riesgo' columns.
         """
         try:
             records = self.get_all_records()
             
             polizas_ramo = []
-            ramo_normalized = ramo.lower().replace('.', '')
+            ramo_normalized = str(ramo or '').lower().replace('.', '').strip()
+            
+            # Robust NIF cleaner
+            def clean_nif(v):
+                return ''.join(filter(str.isalnum, str(v))).upper()
+
+            target_nif = clean_nif(nif)
             
             for record in records:
-                # Match NIF (case-insensitive and strip whitespace)
-                record_nif = str(record.get('Cliente.Nif', '')).strip().upper()
-                target_nif = str(nif).strip().upper()
+                # Get NIF and clean it
+                record_nif = clean_nif(record.get('Cliente.Nif', ''))
                 
-                if record_nif == target_nif:
-                    # Match ramo (category) against 'Descripción riesgo'
-                    desc_riesgo = str(record.get('Descripción riesgo', '')).lower().replace('.', '')
+                if record_nif == target_nif and target_nif != '':
+                    # Match ramo against 'Descripción riesgo' OR 'Riesgo'
+                    desc_riesgo = str(record.get('Descripción riesgo', '')).lower()
+                    riesgo_col = str(record.get('Riesgo', '')).lower()
                     
-                    if ramo_normalized in desc_riesgo:
+                    # If ramo is empty (like in your test), it should match everything for that NIF
+                    if not ramo_normalized or ramo_normalized in desc_riesgo or ramo_normalized in riesgo_col:
                         company_name = record.get('Alias compañía', '')
                         polizas_ramo.append({
                             'number': record.get('Num. Póliza', ''),
