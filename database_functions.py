@@ -11,7 +11,7 @@ def get_company_config(company_id: str):
         
     firestore_db = firestore.client()
     try:
-        docs = firestore_db.collection(u'waba_accounts').where(u'phones_ids', u'array_contains', company_id).get()
+        docs = firestore_db.collection(u'clientIDs').where(u'ids', u'array_contains', company_id).get()
     except Exception as e:
         return {"error": f"[ERROR] Database connection failed: {e}"}
     
