@@ -43,14 +43,34 @@ class GoogleSheetsClient:
     def get_all_records(self):
         """
         Returns all rows of the first worksheet as an array of JSON (dictionaries).
+        Uses position-based mapping (1-indexed columns):
+        1: number, 2: company_name, 3: ramo, 4: risk_part1, 5: customer_name, 6: risk_part2, 7: nif
         """
         if not self.spreadsheet:
             raise Exception("Spreadsheet not opened. Call login() first.")
         
         try:
-            # Assume data is in the first sheet
             worksheet = self.spreadsheet.get_worksheet(0)
-            return worksheet.get_all_records()
+            rows = worksheet.get_all_values()
+            
+            records = []
+            for row in rows:
+                if len(row) < 7: continue
+                
+                # Join risk from column 4 (index 3) and column 6 (index 5)
+                risk_p1 = str(row[3]).strip()
+                risk_p2 = str(row[5]).strip()
+                full_risk = f"{risk_p1} {risk_p2}".strip()
+                
+                records.append({
+                    'Num. Póliza': str(row[0]).strip(),
+                    'Alias compañía': str(row[1]).strip(),
+                    'Ramo': str(row[2]).strip(),
+                    'Riesgo': full_risk,
+                    'Nombre completo': str(row[4]).strip(),
+                    'Cliente.Nif': str(row[6]).strip()
+                })
+            return records
         except Exception as e:
             print(f"[ERROR] get_all_records: {e}")
             return []
@@ -58,7 +78,7 @@ class GoogleSheetsClient:
     def get_all_policys_by_client_category(self, nif: str, ramo: str, company_id: str=None):
         """
         Retrieves policies for a client based on NIF and filters by category (ramo).
-        Searches in both 'Riesgo' and 'Descripción riesgo' columns.
+        Uses position-based data from get_all_records.
         """
         try:
             records = self.get_all_records()
@@ -77,12 +97,12 @@ class GoogleSheetsClient:
                 record_nif = clean_nif(record.get('Cliente.Nif', ''))
                 
                 if record_nif == target_nif and target_nif != '':
-                    # Match ramo against 'Descripción riesgo' OR 'Riesgo'
-                    desc_riesgo = str(record.get('Descripción riesgo', '')).lower()
-                    riesgo_col = str(record.get('Riesgo', '')).lower()
+                    # Match ramo against 'Ramo' OR 'Riesgo'
+                    row_ramo = str(record.get('Ramo', '')).lower()
+                    full_risk = str(record.get('Riesgo', '')).lower()
                     
-                    # If ramo is empty (like in your test), it should match everything for that NIF
-                    if not ramo_normalized or ramo_normalized in desc_riesgo or ramo_normalized in riesgo_col:
+                    # If ramo is empty, it should match everything for that NIF
+                    if not ramo_normalized or ramo_normalized in row_ramo or ramo_normalized in full_risk:
                         company_name = record.get('Alias compañía', '')
                         polizas_ramo.append({
                             'number': record.get('Num. Póliza', ''),
