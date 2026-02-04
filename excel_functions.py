@@ -57,7 +57,7 @@ class GoogleSheetsClient:
             for row in rows:
                 if len(row) < 7: continue
                 
-                # Join risk from column 4 (index 3) and column 6 (index 5)
+                # Join risk from column 4 (index 3: Riesgo) and column 6 (index 5: Descripción riesgo)
                 risk_p1 = str(row[3]).strip()
                 risk_p2 = str(row[5]).strip()
                 full_risk = f"{risk_p1} {risk_p2}".strip()
@@ -65,7 +65,7 @@ class GoogleSheetsClient:
                 records.append({
                     'Num. Póliza': str(row[0]).strip(),
                     'Alias compañía': str(row[1]).strip(),
-                    'Ramo': str(row[2]).strip(),
+                    'Producto.Ramo.GrupoDeRamos.Alias': str(row[2]).strip(),
                     'Riesgo': full_risk,
                     'Nombre completo': str(row[4]).strip(),
                     'Cliente.Nif': str(row[6]).strip()
@@ -97,8 +97,8 @@ class GoogleSheetsClient:
                 record_nif = clean_nif(record.get('Cliente.Nif', ''))
                 
                 if record_nif == target_nif and target_nif != '':
-                    # Match ramo against 'Ramo' OR 'Riesgo'
-                    row_ramo = str(record.get('Ramo', '')).lower()
+                    # Match ramo against 'Producto.Ramo.GrupoDeRamos.Alias' OR 'Riesgo'
+                    row_ramo = str(record.get('Producto.Ramo.GrupoDeRamos.Alias', '')).lower()
                     full_risk = str(record.get('Riesgo', '')).lower()
                     
                     # If ramo is empty, it should match everything for that NIF
