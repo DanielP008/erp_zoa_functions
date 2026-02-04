@@ -1,3 +1,5 @@
 functions-framework==3.*
 firebase-admin
 google-cloud-firestore
+gspread
+google-auth

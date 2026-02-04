@@ -1,6 +1,7 @@
 import functions_framework
 import erp_auth
 import database_functions
+import excel_functions
 import json
 import firebase_admin
 from firebase_admin import db,credentials,storage,firestore
@@ -53,14 +54,23 @@ def main(request):
     if not domain_info:
         return {"error": f"Configuration not found for company_id: {company_id}"}, 404
 
-    try:
-        client = erp_auth.get_erp_client(domain_info)
-        if isinstance(client, str):
-            return {"error": f'Error conectando con el ERP: {client}'}, 500
-        if not client:
-            return {"error": "Error conectando con el ERP (Login fallido)"}, 500
-    except Exception as e:
-        return {'error': f'Error conectando con el ERP: {str(e)}'}, 500
+    if domain_info.get('erp_type') == 'ebroker':
+        try:
+            client = erp_auth.get_erp_client(domain_info)
+            if not client:
+                return {"error": "Error conectando con ebroker (Login fallido)"}, 500
+        except Exception as e:
+            return {'error': f'Error conectando con ebroker: {str(e)}'}, 500
+    elif domain_info.get('erp_type') == 'excel':
+        try:
+            client = excel_functions.get_erp_client(domain_info)
+            if not client:
+                return {"error": "Error conectando con excel (Login fallido)"}, 500
+        except Exception as e:
+            return {'error': f'Error conectando con excel: {str(e)}'}, 500
+    else:
+        return {"error": f"Invalid ERP type: {domain_info.get('erp_type')}"}, 400
+    
 
 
     #========== TOOL METHODS ==========
