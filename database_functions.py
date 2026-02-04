@@ -18,4 +18,4 @@ def get_company_config(company_id: str):
     if not docs:
         return None
         
-    return docs[0].to_dict()
+    return docs[0].to_dict().get("erp",{})

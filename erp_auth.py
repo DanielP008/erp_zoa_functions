@@ -1,10 +1,9 @@
 import ebroker_functions
 
-def get_erp_client(domain_info):
+def get_erp_client(erp):
     """
     Initializes and authenticates the ERP client based on domain configuration.
     """
-    erp = domain_info.get('erp', {})
     password = erp.get('password')
     user = erp.get('user')
     client_id = erp.get('client_id')
