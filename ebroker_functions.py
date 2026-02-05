@@ -237,8 +237,7 @@ class EBrokerClient:
                 doc_id = documento_poliza.get('id')
                 try:
                     doc_data = self.get_document(doc_id)
-                except Exception as e:
-                    print(f"[ERROR] Failed to download document ID {doc_id}: {e}")
+                except Exception:
                     continue
 
                 filename = documento_poliza.get('filename', '')

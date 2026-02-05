@@ -54,20 +54,23 @@ def main(request):
     if not domain_info:
         return {"error": f"Configuration not found for company_id: {company_id}"}, 404
 
-    if domain_info.get('erp_type') == 'ebroker':
+    # Normalize erp_type
+    raw_erp_type = str(domain_info.get('erp_type', '')).strip().lower()
+
+    if raw_erp_type == 'ebroker':
         try:
             client = erp_auth.get_erp_client(domain_info)
             if not client:
                 return {"error": "Error conectando con ebroker (Login fallido)"}, 500
         except Exception as e:
             return {'error': f'Error conectando con ebroker: {str(e)}'}, 500
-    elif str(domain_info.get('erp_type', '')).strip().lower() in ['excel', 'excell']:
+    elif raw_erp_type in ['excel', 'excell']:
         try:
             client = excel_functions.get_erp_client(domain_info)
         except Exception as e:
             return {'error': f'Error conectando con excel: {str(e)}'}, 500
     else:
-        return {"error": f"Invalid ERP type: {domain_info.get('erp_type')}"}, 400
+        return {"error": f"Invalid ERP type: {raw_erp_type}"}, 400
     
 
 
