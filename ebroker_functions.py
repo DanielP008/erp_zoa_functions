@@ -1,5 +1,4 @@
 import requests
-import concurrent.futures
 from utils import get_phones
 import json
 from typing import Optional, Dict, Any, List
@@ -275,28 +274,32 @@ class EBrokerClient:
                 except ValueError:
                     start_date = datetime.now()
 
-        master_receipt_list = []
-        dates_to_check = []
-        for i in range(frequency):
-            current_date = start_date + timedelta(days=i)
-            dates_to_check.append(current_date.strftime("%Y-%m-%d"))
-            
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            # Map maintains order corresponding to dates_to_check
-            results = executor.map(self.get_receipts_for_specific_date, dates_to_check)
-            for receipt_list in results:
-                if receipt_list:
-                    master_receipt_list.extend(receipt_list)
-                    
-        return master_receipt_list
+        
+        # Calculate boundaries for > and < logic
+        # We want receipts starting from start_date, so ini_date must be start_date - 1 day
+        ini_date = (start_date - timedelta(days=1)).strftime("%Y-%m-%d")
+        
+        # We want receipts up to start_date + frequency (exclusive of the end date in python slice terms, but API is <)
+        # If frequency is 1, we want [start, start]. start+1 is effective upper bound for <
+        fin_date = (start_date + timedelta(days=frequency)).strftime("%Y-%m-%d")
+
+        # User requested: /v1/receipts?query=dueDate>{ini_date}&query=dueDate<{fin_date}
+        # Note: We construct the endpoint manually to ensure multiple 'query' parameters are passed correctly if requests dict doesn't handle it the way we prefer, 
+        # but _make_request appends params. Let's pass it in endpoint string like user showed to be safe.
+        endpoint = f"/v1/receipts?query=dueDate>{ini_date}&query=dueDate<{fin_date}"
+        
+        # We don't pass params dict since we put it in the URL
+        return self._make_request("business", "GET", endpoint)
     
     def get_receipt_labels(self, receipt_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts/{receipt_id}/labels")
 
-    def _process_receipt_data(self, recibo: Dict) -> List[Dict]:
-        """Helper method to process a single receipt for labels concurrently."""
-        results = []
-        try:
+    def get_receipts_label(self, start_date, frequency):
+        if start_date is None:
+            start_date = datetime.now()
+        result = []
+        recibos = self.get_upcoming_receipts(start_date, frequency)
+        for recibo in recibos:
             cliente = recibo.get('customer', {})
             lbls = self.get_receipt_labels(recibo.get('id'))
             for lbl in lbls:
@@ -310,7 +313,7 @@ class EBrokerClient:
                     gestor = str(cliente.get('management_user', {})) # Adjust if it comes as dict
                     plantilla = str(lbl.get("value"))
                     
-                    results.append({
+                    result.append({
                         'nif': nif,
                         'ramo': ramo,
                         'nombre': nombre,
@@ -319,29 +322,6 @@ class EBrokerClient:
                         'plantilla': plantilla,
                         'gestor': gestor
                     })
-        except Exception as e:
-            # Log error internally or ignore bad receipts
-            print(f"Error processing receipt {recibo.get('id')}: {e}")
-        return results
-
-    def get_receipts_label(self, start_date, frequency):
-        if start_date is None:
-            start_date = datetime.now()
-        result = []
-        recibos = self.get_upcoming_receipts(start_date, frequency)
-        
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            # Submit all receipt processing tasks
-            futures = [executor.submit(self._process_receipt_data, recibo) for recibo in recibos]
-            
-            for future in concurrent.futures.as_completed(futures):
-                try:
-                    items = future.result()
-                    if items:
-                        result.extend(items)
-                except Exception as e:
-                    print(f"Thread execution failed: {e}")
-
         return result
 
     def get_doc_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
