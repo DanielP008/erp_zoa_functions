@@ -124,6 +124,7 @@ def get_erp_client(erp_config):
     """
     Initializes and authenticates the Google Sheets client.
     """
+    #TO DELETE
     return erp_config
     if not isinstance(erp_config, dict):
         raise ValueError(f"erp_config must be a dictionary, got {type(erp_config).__name__}")
