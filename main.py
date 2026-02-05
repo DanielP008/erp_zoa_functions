@@ -5,7 +5,7 @@ import excel_functions
 import json
 import firebase_admin
 from firebase_admin import db,credentials,storage,firestore
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 
 
@@ -37,8 +37,8 @@ def main(request):
     num_poliza = request_json.get('num_poliza')
     phone = request_json.get('phone')
     #TODO FORMATO STANDARD DE DATE es dia mes año, ebroker espera año mes dia
-    start_date = request_json.get('start_date', '')
-    frequency = request_json.get('frequency', 7)
+    day = request_json.get('day', '')
+    period = request_json.get('period', 7)
     lines = request_json.get('lines', '')
     id_siniestro = request_json.get('id_siniestro', '')
     risk = request_json.get('risk', '')
@@ -68,7 +68,7 @@ def main(request):
         try:
             client = excel_functions.get_erp_client(domain_info)
             #TO DELETE
-            #return client
+            return client
         except Exception as e:
             return {'error': f'Error conectando con excel: {str(e)}'}, 500
     else:
@@ -202,65 +202,14 @@ def main(request):
                 return []
             else:
                 return ultimo_recibo
-        ''' Comentamos por que solo queremos por renovaciones
-        # Renewals
-        if option == 'renovaciones_auto_semana':
-            url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
-            renovaciones_vigentes = []
-            renovaciones = client.get_renewals_lable(start_date,frequency)
-            for renovacion in renovaciones:
-                nif = renovacion.get('nif')
-                ramo = renovacion.get('ramo')
-                nombre = renovacion.get('nombre')
-                riesgo = renovacion.get('riesgo')
-                prima = renovacion.get('prima')
-                plantilla = renovacion.get('plantilla')
-                gestor = renovacion.get('gestor')
-                payload_search = {
-                    "company_id": company_id,
-                    "action": "contacts",
-                    "option": "search",
-                    "nif": nif
-                }
-                            
-                try:
-                    res_zoa = requests.post(url, json=payload_search, timeout=10)
-                    res_zoa.raise_for_status()
-                    datos_zoa = res_zoa.json()
-                    client_phone = datos_zoa.get('phone')
-                except Exception:
-                    continue
-
-                payload_send = {
-                    "company_id": company_id,
-                    "action": "conversations",
-                    "option": "send",
-                    "phone": client_phone,
-                    "template_name": plantilla,
-                    "type": "template",
-                    "params": f"{nombre};{riesgo};{ramo};{prima}",
-                    "image": "", "audio": "", "video": "", "document": "", "location": ""
-                }
-
-                try:
-                    template_enviado = requests.post(url, json=payload_send, timeout=10)
-                except Exception:
-                    pass
-
-                # Add to return list
-                gestor = json_cliente.get('management_user', {})
-                renovaciones_vigentes.append({
-                    'client_nif': nif,
-                    'client_name': nombre,
-                    'gestor': gestor if gestor else 'No manager'
-                })
-
-            return renovaciones_vigentes
-        '''
+        
         if option == 'renovaciones_recibos':
+            # "revisar desde el siguiente dia" -> Start tomorrow
+            start_date_calc = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
             url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
             renovaciones_vigentes = []
-            renovaciones = client.get_receipts_label(start_date, frequency)
+            renovaciones = client.get_receipts_label(start_date_calc, int(period))
             for renovacion in renovaciones:
                 nif = renovacion.get('nif')
                 ramo = renovacion.get('ramo')
