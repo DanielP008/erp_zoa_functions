@@ -137,6 +137,10 @@ def get_erp_client(erp_config):
     if not spreadsheet_url.startswith('https://'):
         raise ValueError(f"Invalid Google Sheet URL (must start with https://): {spreadsheet_url}")
 
+    # Normalize URL: strip trailing /edit, #gid, etc. to get the base spreadsheet URL
+    if '/edit' in spreadsheet_url:
+        spreadsheet_url = spreadsheet_url.split('/edit')[0]
+
     client = GoogleSheetsClient(spreadsheet_url=spreadsheet_url)
     client.login()
     return client

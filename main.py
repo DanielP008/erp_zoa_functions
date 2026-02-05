@@ -109,8 +109,7 @@ def main(request):
                     res_zoa.raise_for_status()
                     datos_zoa = res_zoa.json()
                     client_phone = datos_zoa.get('phone')
-                except Exception as e:
-                    print(f"Error searching for claim customer in Zoa: {e}")
+                except Exception:
                     continue
 
                 payload_send = {
@@ -126,9 +125,8 @@ def main(request):
 
                 try:
                     res_envio = requests.post(url, json=payload_send, timeout=10)
-                    print(f"Claim {siniestro.get('desc_siniestro')} sent: {res_envio.json()}")
-                except Exception as e:
-                    print(f"Error sending claim message: {e}")
+                except Exception:
+                    pass
 
                 seguimiento_siniestros.append({
                     'desc_siniestro': siniestro.get('desc_siniestro'),
@@ -225,8 +223,7 @@ def main(request):
                     res_zoa.raise_for_status()
                     datos_zoa = res_zoa.json()
                     client_phone = datos_zoa.get('phone')
-                except Exception as e:
-                    print(f"Error searching for customer in Zoa: {e}")
+                except Exception:
                     continue
 
                 payload_send = {
@@ -242,9 +239,8 @@ def main(request):
 
                 try:
                     template_enviado = requests.post(url, json=payload_send, timeout=10)
-                    print(f"Send result: {template_enviado.json()}")
-                except Exception as e:
-                    print(f"Error sending template: {e}")
+                except Exception:
+                    pass
 
                 # Add to return list
                 gestor = json_cliente.get('management_user', {})
@@ -281,8 +277,7 @@ def main(request):
                     res_zoa.raise_for_status()
                     datos_zoa = res_zoa.json()
                     client_phone = datos_zoa.get('phone')
-                except Exception as e:
-                    print(f"Error searching for customer in Zoa: {e}")
+                except Exception:
                     continue
 
                 payload_send = {
@@ -298,9 +293,8 @@ def main(request):
 
                 try:
                     template_enviado = requests.post(url, json=payload_send, timeout=10)
-                    print(f"Send result: {template_enviado.json()}")
-                except Exception as e:
-                    print(f"Error sending template: {e}")
+                except Exception:
+                    pass
                 '''
                 # Add to return list
                 renovaciones_vigentes.append({
@@ -334,5 +328,5 @@ def get_nif_by_phone(phone):
         res_zoa.raise_for_status()
         datos_zoa = res_zoa.json()
         return datos_zoa.get('nif')
-    except Exception as e:
-        return (f"Error searching for customer in Zoa: {e}")
+    except Exception:
+        return None

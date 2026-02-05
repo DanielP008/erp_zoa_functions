@@ -11,8 +11,7 @@ def get_phones(company_name):
         with open('insurance_phones.json', 'r', encoding='utf-8') as f:
             company_phones = json.load(f)
     except Exception as e:
-        print(f"[ERROR] Failed to load insurance_phones.json: {e}")
-        return {}
+        return {f"[ERROR] Failed to load insurance_phones.json: {e}"}
     
     company_clean = company_name.lower().replace('_', ' ')
     

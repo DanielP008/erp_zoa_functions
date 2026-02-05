@@ -1,12 +1,8 @@
 import requests
 from utils import get_phones
-import logging
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 class EBrokerAPIError(Exception):
     pass
@@ -47,7 +43,6 @@ class EBrokerClient:
                 self.sessions[api_type].headers.update({"Authorization": f"Bearer {self.tokens[api_type]['access_token']}"})
                 results[api_type] = data
             except Exception as e:
-                logger.error(f"Login error for {api_type}: {e}")
                 errors.append(str(e))
         if errors and len(errors) == 3:
             raise EBrokerAPIError(f"Authentication failed for all APIs: {'; '.join(errors)}")
