@@ -28,11 +28,15 @@ class GoogleSheetsClient:
             self.client = gspread.authorize(credentials)
             
             if self.spreadsheet_url:
+                if not self.spreadsheet_url.startswith('https://'):
+                    raise ValueError(f"Invalid URL format: {self.spreadsheet_url}. It must start with https://")
                 self.spreadsheet = self.client.open_by_url(self.spreadsheet_url)
+            else:
+                raise ValueError("Spreadsheet URL is missing.")
             
             return True
         except Exception as e:
-            raise Exception(f"Failed to authenticate with Google Sheets: {e}")
+            raise Exception(f"Login failed: {e}")
 
     def get_spreadsheet_title(self):
         """Returns the title of the opened spreadsheet."""
@@ -42,7 +46,7 @@ class GoogleSheetsClient:
 
     def get_all_records(self):
         """
-        Returns all rows of the first worksheet as an array of JSON (dictionaries).
+        Returns all rows of the first worksheet as an array.
         Uses position-based mapping (1-indexed columns):
         1: number, 2: company_name, 3: ramo, 4: risk_part1, 5: customer_name, 6: risk_part2, 7: nif
         """
@@ -71,14 +75,12 @@ class GoogleSheetsClient:
                     'Cliente.Nif': str(row[6]).strip()
                 })
             return records
-        except Exception as e:
-            print(f"[ERROR] get_all_records: {e}")
+        except Exception:
             return []
 
     def get_all_policys_by_client_category(self, nif: str, ramo: str, company_id: str=None):
         """
         Retrieves policies for a client based on NIF and filters by category (ramo).
-        Uses position-based data from get_all_records.
         """
         try:
             records = self.get_all_records()
@@ -93,15 +95,12 @@ class GoogleSheetsClient:
             target_nif = clean_nif(nif)
             
             for record in records:
-                # Get NIF and clean it
                 record_nif = clean_nif(record.get('Cliente.Nif', ''))
                 
                 if record_nif == target_nif and target_nif != '':
-                    # Match ramo against 'Producto.Ramo.GrupoDeRamos.Alias' OR 'Riesgo'
                     row_ramo = str(record.get('Producto.Ramo.GrupoDeRamos.Alias', '')).lower()
                     full_risk = str(record.get('Riesgo', '')).lower()
                     
-                    # If ramo is empty, it should match everything for that NIF
                     if not ramo_normalized or ramo_normalized in row_ramo or ramo_normalized in full_risk:
                         company_name = record.get('Alias compañía', '')
                         polizas_ramo.append({
@@ -113,8 +112,7 @@ class GoogleSheetsClient:
                         })
             
             return polizas_ramo
-        except Exception as e:
-            print(f"[ERROR] get_all_policys_by_client_category: {e}")
+        except Exception:
             return []
 
     def get_customer_claims_by_category(self, nif: str, ramo: str):
@@ -125,16 +123,20 @@ class GoogleSheetsClient:
 def get_erp_client(erp_config):
     """
     Initializes and authenticates the Google Sheets client.
-    Matches the signature expected by erp_auth.py and main.py.
     """
-    print(f"[DEBUG] excel_functions.py erp_config: {erp_config}")
-    spreadsheet_url = erp_config.get('url')
+    if not isinstance(erp_config, dict):
+        raise ValueError(f"erp_config must be a dictionary, got {type(erp_config).__name__}")
 
-    print(f"[DEBUG] excel_functions.py: Attempting login with URL: {spreadsheet_url}")
-    try:
-        client = GoogleSheetsClient(spreadsheet_url=spreadsheet_url)
-        client.login()
-        return client
-    except Exception as e:
-        print(f"[ERROR] excel_functions.py Login failed: {e}")
-        return None
+    # Try common keys for the spreadsheet URL
+    spreadsheet_url = erp_config.get('url') or erp_config.get('spreadsheet_url') or erp_config.get('client_id')
+
+    if not spreadsheet_url:
+        raise ValueError("Spreadsheet URL not found in erp configuration (checked 'url', 'spreadsheet_url', 'client_id')")
+    
+    spreadsheet_url = str(spreadsheet_url).strip()
+    if not spreadsheet_url.startswith('https://'):
+        raise ValueError(f"Invalid Google Sheet URL (must start with https://): {spreadsheet_url}")
+
+    client = GoogleSheetsClient(spreadsheet_url=spreadsheet_url)
+    client.login()
+    return client

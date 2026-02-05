@@ -61,11 +61,9 @@ def main(request):
                 return {"error": "Error conectando con ebroker (Login fallido)"}, 500
         except Exception as e:
             return {'error': f'Error conectando con ebroker: {str(e)}'}, 500
-    elif domain_info.get('erp_type') == 'excel':
+    elif str(domain_info.get('erp_type', '')).strip().lower() in ['excel', 'excell']:
         try:
             client = excel_functions.get_erp_client(domain_info)
-            if not client:
-                return {"error": "Error conectando con excel (Login fallido)"}, 500
         except Exception as e:
             return {'error': f'Error conectando con excel: {str(e)}'}, 500
     else:
