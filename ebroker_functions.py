@@ -1,4 +1,5 @@
 import requests
+import concurrent.futures
 from utils import get_phones
 import json
 from typing import Optional, Dict, Any, List
@@ -275,22 +276,27 @@ class EBrokerClient:
                     start_date = datetime.now()
 
         master_receipt_list = []
+        dates_to_check = []
         for i in range(frequency):
             current_date = start_date + timedelta(days=i)
-            date_str = current_date.strftime("%Y-%m-%d")
-            receipts_day = self.get_receipts_for_specific_date(date_str)
-            master_receipt_list.extend(receipts_day)
+            dates_to_check.append(current_date.strftime("%Y-%m-%d"))
+            
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Map maintains order corresponding to dates_to_check
+            results = executor.map(self.get_receipts_for_specific_date, dates_to_check)
+            for receipt_list in results:
+                if receipt_list:
+                    master_receipt_list.extend(receipt_list)
+                    
         return master_receipt_list
     
     def get_receipt_labels(self, receipt_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts/{receipt_id}/labels")
 
-    def get_receipts_label(self, start_date, frequency):
-        if start_date is None:
-            start_date = datetime.now()
-        result = []
-        recibos = self.get_upcoming_receipts(start_date, frequency)
-        for recibo in recibos:
+    def _process_receipt_data(self, recibo: Dict) -> List[Dict]:
+        """Helper method to process a single receipt for labels concurrently."""
+        results = []
+        try:
             cliente = recibo.get('customer', {})
             lbls = self.get_receipt_labels(recibo.get('id'))
             for lbl in lbls:
@@ -304,7 +310,7 @@ class EBrokerClient:
                     gestor = str(cliente.get('management_user', {})) # Adjust if it comes as dict
                     plantilla = str(lbl.get("value"))
                     
-                    result.append({
+                    results.append({
                         'nif': nif,
                         'ramo': ramo,
                         'nombre': nombre,
@@ -313,6 +319,29 @@ class EBrokerClient:
                         'plantilla': plantilla,
                         'gestor': gestor
                     })
+        except Exception as e:
+            # Log error internally or ignore bad receipts
+            print(f"Error processing receipt {recibo.get('id')}: {e}")
+        return results
+
+    def get_receipts_label(self, start_date, frequency):
+        if start_date is None:
+            start_date = datetime.now()
+        result = []
+        recibos = self.get_upcoming_receipts(start_date, frequency)
+        
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Submit all receipt processing tasks
+            futures = [executor.submit(self._process_receipt_data, recibo) for recibo in recibos]
+            
+            for future in concurrent.futures.as_completed(futures):
+                try:
+                    items = future.result()
+                    if items:
+                        result.extend(items)
+                except Exception as e:
+                    print(f"Thread execution failed: {e}")
+
         return result
 
     def get_doc_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
