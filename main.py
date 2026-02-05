@@ -68,7 +68,7 @@ def main(request):
         try:
             client = excel_functions.get_erp_client(domain_info)
             #TO DELETE
-            return client
+            #return client
         except Exception as e:
             return {'error': f'Error conectando con excel: {str(e)}'}, 500
     else:
