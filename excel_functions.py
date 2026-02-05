@@ -127,15 +127,14 @@ def get_erp_client(erp_config):
     Initializes and authenticates the Google Sheets client.
     Matches the signature expected by erp_auth.py and main.py.
     """
-    spreadsheet_url = erp_config.get('spreadsheet_url')
-    if not spreadsheet_url:
-        # Fallback to 'url' or 'client_id' if spreadsheet_url is not specifically named
-        spreadsheet_url = erp_config.get('url') or erp_config.get('client_id')
+    print(f"[DEBUG] excel_functions.py erp_config: {erp_config}")
+    spreadsheet_url = erp_config.get('url')
 
+    print(f"[DEBUG] excel_functions.py: Attempting login with URL: {spreadsheet_url}")
     try:
         client = GoogleSheetsClient(spreadsheet_url=spreadsheet_url)
         client.login()
         return client
     except Exception as e:
-        print(f"[ERROR] excel_functions.py: {e}")
+        print(f"[ERROR] excel_functions.py Login failed: {e}")
         return None
