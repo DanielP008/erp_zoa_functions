@@ -3,3 +3,5 @@ firebase-admin
 google-cloud-firestore
 gspread
 google-auth
+requests
+flask
