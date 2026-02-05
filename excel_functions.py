@@ -6,12 +6,12 @@ class GoogleSheetsClient:
     """
     Client for interacting with Google Sheets.
     """
-    def __init__(self, spreadsheet_url=None):
+    def __init__(self, spreadsheet_url):
         self.spreadsheet_url = spreadsheet_url
         self.client = None
         self.spreadsheet = None
 
-    def login(self, user=None, password=None):
+    def login(self):
         """
         Authenticates using Application Default Credentials (ADC).
         Note: The Spreadsheet must be shared with the Service Account email.
@@ -26,14 +26,7 @@ class GoogleSheetsClient:
             # Authenticate using default credentials
             credentials, project_id = default(scopes=scopes)
             self.client = gspread.authorize(credentials)
-            
-            if self.spreadsheet_url:
-                if not self.spreadsheet_url.startswith('https://'):
-                    raise ValueError(f"Invalid URL format: {self.spreadsheet_url}. It must start with https://")
-                self.spreadsheet = self.client.open_by_url(self.spreadsheet_url)
-            else:
-                raise ValueError("Spreadsheet URL is missing.")
-            
+            self.spreadsheet = self.client.open_by_url(self.spreadsheet_url)
             return True
         except Exception as e:
             raise Exception(f"Login failed: {e}")
@@ -124,16 +117,14 @@ def get_erp_client(erp_config):
     """
     Initializes and authenticates the Google Sheets client.
     """
-    #TO DELETE
-    return erp_config
     if not isinstance(erp_config, dict):
         raise ValueError(f"erp_config must be a dictionary, got {type(erp_config).__name__}")
 
     # Try common keys for the spreadsheet URL
-    spreadsheet_url = erp_config.get('url') or erp_config.get('spreadsheet_url') or erp_config.get('client_id')
+    spreadsheet_url = erp_config.get('url')
 
     if not spreadsheet_url:
-        raise ValueError("Spreadsheet URL not found in erp configuration (checked 'url', 'spreadsheet_url', 'client_id')")
+        raise ValueError("Spreadsheet URL not found in erp configuration (checked 'url')")
     
     spreadsheet_url = str(spreadsheet_url).strip()
     if not spreadsheet_url.startswith('https://'):
