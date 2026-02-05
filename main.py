@@ -31,7 +31,7 @@ def main(request):
         return {'error': 'Data not provided in JSON format'}, 400
 
     # Load data from JSON
-    company_id =  request_json.get('company_id')
+    company_id =  str(request_json.get('company_id'))
     option =  request_json.get('option')
     nif =  request_json.get('nif')
     num_poliza = request_json.get('num_poliza')
