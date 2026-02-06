@@ -273,8 +273,6 @@ class EBrokerClient:
                         raise ValueError
                 except ValueError:
                     start_date = datetime.now()
-
-        
         # Calculate boundaries for > and < logic
         # We want receipts starting from start_date, so ini_date must be start_date - 1 day
         ini_date = (start_date - timedelta(days=1)).strftime("%Y-%m-%d")

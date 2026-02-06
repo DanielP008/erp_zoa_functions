@@ -113,10 +113,11 @@ class GoogleSheetsClient:
         return {"message": "Method not yet implemented for Excel", "nif": nif}
 
 
-def get_erp_client(erp_config):
+def get_erp_client(data):
     """
     Initializes and authenticates the Google Sheets client.
     """
+    erp_config = data.get('erp', {})
     if not isinstance(erp_config, dict):
         raise ValueError(f"erp_config must be a dictionary, got {type(erp_config).__name__}")
 

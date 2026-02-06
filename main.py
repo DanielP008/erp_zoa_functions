@@ -46,27 +46,31 @@ def main(request):
 
 
     # Load Firebase data
-    domain_info = database_functions.get_company_config(company_id)
+    company_config = database_functions.get_company_config(company_id)
+    system = company_config.get('system', "")
 
-    if isinstance(domain_info, dict) and "error" in domain_info:
-        return domain_info, 500
+    if isinstance(company_config, dict) and "error" in company_config:
+        return company_config, 500
 
-    if not domain_info:
+    if not company_config:
         return {"error": f"Configuration not found for company_id: {company_id}"}, 404
 
+    # Extract ERP config for local usage
+    erp_config = company_config.get('erp', {})
+
     # Normalize erp_type
-    raw_erp_type = str(domain_info.get('erp_type', '')).strip().lower()
+    raw_erp_type = str(erp_config.get('erp_type', '')).strip().lower()
 
     if raw_erp_type == 'ebroker':
         try:
-            client = erp_auth.get_erp_client(domain_info)
+            client = erp_auth.get_erp_client(company_config)
             if not client:
                 return {"error": "Error conectando con ebroker (Login fallido)"}, 500
         except Exception as e:
             return {'error': f'Error conectando con ebroker: {str(e)}'}, 500
     elif raw_erp_type in ['excel', 'excell']:
         try:
-            client = excel_functions.get_erp_client(domain_info)
+            client = excel_functions.get_erp_client(company_config)
             #TO DELETE
             return client
         except Exception as e:
@@ -203,7 +207,7 @@ def main(request):
             else:
                 return ultimo_recibo
         
-        if option == 'renovaciones_recibos':
+        if option == 'renovaciones_recibos' and system != 'old':
             # "revisar desde el siguiente dia" -> Start tomorrow
             start_date_calc = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
 
@@ -263,6 +267,72 @@ def main(request):
 
             return renovaciones_vigentes
 
+        elif option == 'renovaciones_recibos' and system == 'old':
+            # "revisar desde el siguiente dia" -> Start tomorrow
+            start_date_calc = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+            url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
+            renovaciones_vigentes = []
+            renovaciones = client.get_receipts_label(start_date_calc, int(period))
+            for renovacion in renovaciones:
+                nif = renovacion.get('nif')
+                ramo = renovacion.get('ramo')
+                nombre = renovacion.get('nombre')
+                riesgo = renovacion.get('riesgo')
+                prima = renovacion.get('prima')
+                plantilla = renovacion.get('plantilla')
+                gestor = renovacion.get('gestor')
+                
+                #Get client phone
+                payload_search = {
+                    "company_id": company_id,
+                    "action": "contacts",
+                    "option": "search",
+                    "nif": nif
+                }         
+                try:
+                    res_zoa = requests.post(url, json=payload_search, timeout=10)
+                    res_zoa.raise_for_status()
+                    datos_zoa = res_zoa.json()
+                    client_phone = datos_zoa.get('phone')
+                except Exception:
+                    continue
+                
+                #Get template id
+                url = "https://api.zoasuite.com/api/flows"
+                payload_send = {
+                    "company_id": company_id,
+                    "action": "conversations",
+                    "option": "get_template_id",
+                    "template_name": plantilla,
+                }
+                headers = {
+                    "Content-Type": "application/json"
+                }
+                #Params for template
+                params = f"{nombre};{riesgo};{ramo};{prima}"
+                
+                try:
+                    Id_Plantilla = requests.post(url, headers=headers,data=json.dumps(payload_send), timeout=10)
+                except Exception:
+                    pass
+                url = f"https://europe-west3-zoa-suite.cloudfunctions.net/write_WP?phone={client_phone}&option=cloud_template&message={plantilla}&message_id={Id_Plantilla}&header_params=&body_params={params}&company={company_id}"
+
+                try:
+                    template_enviado = requests.post(url, timeout=10)
+                except Exception:
+                    pass
+                
+                # Add to return list
+                renovaciones_vigentes.append({
+                    'client_nif': nif,
+                    'client_name': nombre,
+                    'gestor': gestor if gestor else 'No manager',
+                    'riesgo': riesgo,
+                    'ramo': ramo,
+                    'prima': prima,
+                    'plantilla': plantilla
+                })
     except Exception as e:
         return {'error': f"Error executing operation {option}: {str(e)}"}, 500
 
