@@ -206,9 +206,11 @@ def main(request):
                 return []
             else:
                 return ultimo_recibo
+        
         if option == 'get_customer_phone_by_nif':
             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             return client.get_customer_phone_by_nif(nif)
+
         if option == 'renovaciones_recibos' and system != 'old':
             # "revisar desde el siguiente dia" -> Start tomorrow
             start_date_calc = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
