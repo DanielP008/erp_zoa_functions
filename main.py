@@ -42,6 +42,10 @@ def main(request):
     lines = request_json.get('lines', '')
     id_siniestro = request_json.get('id_siniestro', '')
     risk = request_json.get('risk', '')
+    #Document data
+    filename = request_json.get('filename', '')
+    base64_content = request_json.get('base64_content', '')
+    notes = request_json.get('notes', '')
 
 
 
@@ -166,13 +170,11 @@ def main(request):
             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             return client.get_all_policys_by_client_category(nif, lines,company_id)
 
-        # REMOVE AFTER TESTING
+
         if option == 'get_policy_by_num':
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             return client.get_policy_by_num(num_poliza)
-        #------------------------
 
-        # Query
         if option == 'get_doc_policies':
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             return client.get_policy_doc_by_policynum(num_poliza)
@@ -191,7 +193,7 @@ def main(request):
                     break
             return cust_acc_num
 
-        # Duplicate receipt
+        # Documents
         if option == 'documento_recibo':
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             ultimo_recibo = None
@@ -207,6 +209,21 @@ def main(request):
             else:
                 return ultimo_recibo
         
+        if option == 'add_document_claim':
+            if not id_siniestro: return {"error": "Missing mandatory parameter: id_siniestro"}, 400
+            if not filename: return {"error": "Missing mandatory parameter: filename"}, 400
+            if not base64_content: return {"error": "Missing mandatory parameter: base64_content"}, 400
+            
+            return client.add_document_to_claim(id_siniestro, filename, base64_content, notes)
+            
+        if option == 'add_document_policy':
+            if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
+            if not filename: return {"error": "Missing mandatory parameter: filename"}, 400
+            if not base64_content: return {"error": "Missing mandatory parameter: base64_content"}, 400
+            
+            return client.add_document_to_policy_by_num(num_poliza, filename, base64_content, notes)
+
+        # Customer
         if option == 'get_customer_phone_by_nif':
             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             return client.get_customer_phone_by_nif(nif)

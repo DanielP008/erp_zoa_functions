@@ -382,6 +382,27 @@ class EBrokerClient:
                         'plantilla':plantilla,
                         'gestor': gestor
                     })
+    def add_document_to_claim(self, claim_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 0) -> Dict:
+        """
+        Uploads a document to a specific claim.
+        """
+        payload = {
+            "filename": filename,
+            "notes": notes,
+            "base64_content": base64_content,
+            "document_folder_id": document_folder_id
+        }
+        return self._make_request("business", "POST", f"/v1/claims/{claim_id}/documents", data=payload)
+
+
+    def add_document_to_policy_by_num(self, num_poliza: str, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 0) -> Dict:
+        policy_list = self.get_policy_by_num(num_poliza)
+        if not policy_list:
+             raise ValueError(f"Policy number {num_poliza} not found")
+        
+        policy_id = policy_list[0].get('id')
+        return self.add_document_to_policy(policy_id, filename, base64_content, notes, document_folder_id)
+
 
 # ========== Utility function relocated to utils.py ==========
 
