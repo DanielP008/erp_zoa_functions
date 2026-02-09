@@ -64,8 +64,8 @@ def main(request):
     if raw_erp_type == 'ebroker':
         try:
             client = erp_auth.get_erp_client(company_config)
-            if not client:
-                return {"error": "Error conectando con ebroker (Login fallido)"}, 500
+            if not client or isinstance(client, str):
+                return {"error": f"Error conectando con ebroker (Login fallido): {client}"}, 500
         except Exception as e:
             return {'error': f'Error conectando con ebroker: {str(e)}'}, 500
     elif raw_erp_type in ['excel', 'excell']:

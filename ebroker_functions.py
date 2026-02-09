@@ -91,7 +91,7 @@ class EBrokerClient:
         return self._make_request("crm", "GET", "/v1/customers", params=params)
 
     def get_customer_by_nif(self, nif: str) -> List[Dict]:
-        result = self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}&order=ASC")
+        result = self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}")
         return result
 
     def get_customer_policies(self, nif: str) -> List[Dict]:
