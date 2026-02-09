@@ -214,14 +214,14 @@ def main(request):
             if not filename: return {"error": "Missing mandatory parameter: filename"}, 400
             if not base64_content: return {"error": "Missing mandatory parameter: base64_content"}, 400
             
-            return client.add_document_to_claim(id_siniestro, filename, base64_content, notes)
+            return client.add_document_to_claim(id_siniestro, filename, base64_content,notes,0)
             
         if option == 'add_document_policy':
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             if not filename: return {"error": "Missing mandatory parameter: filename"}, 400
             if not base64_content: return {"error": "Missing mandatory parameter: base64_content"}, 400
             
-            return client.add_document_to_policy_by_num(num_poliza, filename, base64_content, notes)
+            return client.add_document_to_policy_by_num(num_poliza, filename, base64_content,notes,0)
 
         # Customer
         if option == 'get_customer_phone_by_nif':
