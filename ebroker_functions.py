@@ -394,7 +394,6 @@ class EBrokerClient:
         }
         return self._make_request("business", "POST", f"/v1/claims/{claim_id}/documents", data=payload)
 
-
     def add_document_to_policy_by_num(self, num_poliza: str, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 0) -> Dict:
         policy_list = self.get_policy_by_num(num_poliza)
         if not policy_list:
