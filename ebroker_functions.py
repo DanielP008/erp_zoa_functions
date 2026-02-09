@@ -249,8 +249,11 @@ class EBrokerClient:
                     })
 
         return resultado
-    def get_customer_phone_by_nif(self, nif: str)-> List[Dict]:
-        return self.get_customer_by_nif(nif).get('phone')
+    def get_customer_phone_by_nif(self, nif: str) -> Optional[str]:
+        customers = self.get_customer_by_nif(nif)
+        if customers and len(customers) > 0:
+             return customers[0].get('phone')
+        return None
 
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
