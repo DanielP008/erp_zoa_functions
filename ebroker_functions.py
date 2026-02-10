@@ -238,6 +238,7 @@ class EBrokerClient:
              return customers[0].get('phone')
         return None
 
+    #CANDIDATES
     def get_candidate_by_nif(self, nif: str) -> List[Dict]:
         return self._make_request("crm", "GET", f"/v1/candidates?query=legalId:{nif}")
 
@@ -253,7 +254,6 @@ class EBrokerClient:
         })
         return self._make_request("crm", "POST", "/v1/candidates", data=payload)
 
-    
     #RECEIPTS
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
