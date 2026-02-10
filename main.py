@@ -42,6 +42,7 @@ def main(request):
     lines = request_json.get('lines', '')
     id_siniestro = request_json.get('id_siniestro', '')
     risk = request_json.get('risk', '')
+    name = request_json.get('name', '')
     #Document data
     filename = request_json.get('filename', '')
     base64_content = request_json.get('base64_content', '')
@@ -227,6 +228,21 @@ def main(request):
         if option == 'get_customer_phone_by_nif':
             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             return client.get_customer_phone_by_nif(nif)
+
+        # Candidate
+        if option == 'create_candidate':
+            if not name: return {"error": "Missing mandatory parameter: name"}, 400
+            if not phone: return {"error": "Missing mandatory parameter: phone"}, 400
+            
+            candidate_data = {
+                "name": name,
+                "phone": phone
+            }
+            return client.post_candidate(candidate_data)
+        
+        if option == 'get_candidate_by_nif':
+             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
+             return client.get_candidate_by_nif(nif)
 
         if option == 'renovaciones_recibos' and system != 'old':
             # "revisar desde el siguiente dia" -> Start tomorrow

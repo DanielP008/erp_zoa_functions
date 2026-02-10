@@ -187,6 +187,7 @@ class EBrokerClient:
 
     # ========== Business methods used by main.py ==========
 
+    #CLAIMS
     def get_claim_labels(self, claim_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/claims/{claim_id}/labels")
 
@@ -222,39 +223,38 @@ class EBrokerClient:
                 }
         return data
 
+    #POLICIES
     def get_policy_by_num(self, policy_num: str) -> Dict:
         return self._make_request("business", "GET", f"/v1/policies?query=number:{policy_num}&order=ASC")
 
-    def get_document(self, document_id: int) -> Dict:
-        return self._make_request("business", "GET", f"/v1/documents/{document_id}")
+    def get_policies_for_specific_date(self, date) -> List[Dict]:
+        params = {"query": f"renewalDate:{date}"}
+        return self._make_request("business", "GET", "/v1/policies", params=params)
 
-    def get_policy_doc_by_policynum(self, policy_num: str) -> List[Dict]:
-        resultado = []
-        api_poliza = self.get_policy_by_num(policy_num)
-        if api_poliza and len(api_poliza) > 0:
-            documentos_poliza = api_poliza[0].get('documents', [])
-            for documento_poliza in documentos_poliza:
-                doc_id = documento_poliza.get('id')
-                try:
-                    doc_data = self.get_document(doc_id)
-                except Exception:
-                    continue
-
-                filename = documento_poliza.get('filename', '')
-                if filename.startswith("pol") and filename.endswith(".pdf"):
-                    resultado.append({
-                        'description': documento_poliza.get('description'),
-                        'filename': filename,
-                        'data': doc_data.get('base64_content'),
-                    })
-
-        return resultado
+    #CUSTOMERS
     def get_customer_phone_by_nif(self, nif: str) -> Optional[str]:
         customers = self.get_customer_by_nif(nif)
         if customers and len(customers) > 0:
              return customers[0].get('phone')
         return None
 
+    def get_candidate_by_nif(self, nif: str) -> List[Dict]:
+        return self._make_request("crm", "GET", f"/v1/candidates?query=legalId:{nif}")
+
+    def post_candidate(self, candidate: Dict) -> Dict:
+        """
+        Creates a candidate, ensuring office IDs are appended.
+        """
+        payload = candidate.copy()
+        payload.update({
+            "management_office_id": 1,
+            "production_office_id": 1,
+            "charge_office_id": 1
+        })
+        return self._make_request("crm", "POST", "/v1/candidates", data=payload)
+
+    
+    #RECEIPTS
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
 
@@ -327,20 +327,9 @@ class EBrokerClient:
                     })
         return result
 
-    def get_doc_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
-        result = []
-        recibos = self.get_receipts_by_num_policy(num_poliza)
-        if recibos:
-            recibo = recibos[0]
-            docs_recibo = recibo.get('documents', [])
-            for doc_recibo in docs_recibo:
-                doc = self.get_document(doc_recibo.get('id'))
-                result.append({'description': doc_recibo.get('description'), 'filename': doc_recibo.get('filename'), 'data': doc.get('base64_content')})
-        return result
+    
 
-    def get_policies_for_specific_date(self, date) -> List[Dict]:
-        params = {"query": f"renewalDate:{date}"}
-        return self._make_request("business", "GET", "/v1/policies", params=params)
+    #Renewals
 
     def get_upcoming_renewals(self, start_date=None, frequency: int = 7):
         if start_date is None:
@@ -382,6 +371,8 @@ class EBrokerClient:
                         'plantilla':plantilla,
                         'gestor': gestor
                     })
+
+    #DOCUMENTS
     def add_document_to_claim(self, claim_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 0) -> Dict:
         """
         Uploads a document to a specific claim.
@@ -405,6 +396,15 @@ class EBrokerClient:
         }
         return self._make_request("business", "POST", f"/v1/policies/{policy_id}/documents", data=payload)
 
+    def import_zoa_client_notes(self, client_id: int, notes: List[Dict]) -> Dict:
+        """
+        Imports notes to a specific client.
+        """
+        payload = {
+            "notes": notes
+        }
+        return self._make_request("business", "POST", f"/v1/clients/{client_id}/notes", data=payload)
+
     def add_document_to_policy_by_num(self, num_poliza: str, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 0) -> Dict:
         policy_list = self.get_policy_by_num(num_poliza)
         if not policy_list:
@@ -412,6 +412,41 @@ class EBrokerClient:
         
         policy_id = policy_list[0].get('id')
         return self.add_document_to_policy(policy_id, filename, base64_content, notes, document_folder_id)
+    def get_document(self, document_id: int) -> Dict:
+        return self._make_request("business", "GET", f"/v1/documents/{document_id}")
+
+    def get_policy_doc_by_policynum(self, policy_num: str) -> List[Dict]:
+        resultado = []
+        api_poliza = self.get_policy_by_num(policy_num)
+        if api_poliza and len(api_poliza) > 0:
+            documentos_poliza = api_poliza[0].get('documents', [])
+            for documento_poliza in documentos_poliza:
+                doc_id = documento_poliza.get('id')
+                try:
+                    doc_data = self.get_document(doc_id)
+                except Exception:
+                    continue
+
+                filename = documento_poliza.get('filename', '')
+                if filename.startswith("pol") and filename.endswith(".pdf"):
+                    resultado.append({
+                        'description': documento_poliza.get('description'),
+                        'filename': filename,
+                        'data': doc_data.get('base64_content'),
+                    })
+
+        return resultado
+
+    def get_doc_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
+        result = []
+        recibos = self.get_receipts_by_num_policy(num_poliza)
+        if recibos:
+            recibo = recibos[0]
+            docs_recibo = recibo.get('documents', [])
+            for doc_recibo in docs_recibo:
+                doc = self.get_document(doc_recibo.get('id'))
+                result.append({'description': doc_recibo.get('description'), 'filename': doc_recibo.get('filename'), 'data': doc.get('base64_content')})
+        return result
 
 
 # ========== Utility function relocated to utils.py ==========
