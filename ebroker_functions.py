@@ -11,14 +11,14 @@ class EBrokerClient:
     def __init__(self, client_id: int = 20100995):
         self.realm_id = client_id
         if client_id == 20100995:
-            self.ADMIN_API = "http://pre-erp.ebroker.es/erp-admin-services"
-            self.BUSINESS_API = "http://pre-erp.ebroker.es/erp-business-services"
-            self.CRM_API = "http://pre-erp.ebroker.es/erp-crm-services"
+            self.ADMIN_API = "https://pre-erp.ebroker.es/erp-admin-services"
+            self.BUSINESS_API = "https://pre-erp.ebroker.es/erp-business-services"
+            self.CRM_API = "https://pre-erp.ebroker.es/erp-crm-services"
             self.AUTH_URL = "https://pre-sso.ebroker.es/realms/20100995/protocol/openid-connect/token"
         else:
-            self.ADMIN_API = f"http://usr{client_id}.ebroker.es/erp-admin-services"
-            self.BUSINESS_API = f"http://usr{client_id}.ebroker.es/erp-business-services"
-            self.CRM_API = f"http://usr{client_id}.ebroker.es/erp-crm-services"
+            self.ADMIN_API = f"https://usr{client_id}.ebroker.es/erp-admin-services"
+            self.BUSINESS_API = f"https://usr{client_id}.ebroker.es/erp-business-services"
+            self.CRM_API = f"https://usr{client_id}.ebroker.es/erp-crm-services"
             self.AUTH_URL = f"https://sso.ebroker.es/realms/{client_id}/protocol/openid-connect/token"
 
         self.api_urls = {"admin": self.ADMIN_API, "business": self.BUSINESS_API, "crm": self.CRM_API}
