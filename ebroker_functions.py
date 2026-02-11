@@ -382,7 +382,15 @@ class EBrokerClient:
                     })
 
     #DOCUMENTS
-    def add_document_to_claim(self, claim_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 0) -> Dict:
+    def add_document_to_claim_by_num(self, num_claim: str, filename: str, base64_content: str, notes: str = "") -> Dict:
+        claim_list = self.get_claim_by_num(num_claim)
+        if not claim_list:
+             raise ValueError(f"Claim number {num_claim} not found")
+        
+        claim_id = claim_list[0].get('id')
+        return self.add_document_to_claim(claim_id, filename, base64_content, notes,101)
+
+    def add_document_to_claim(self, claim_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 101) -> Dict:
         """
         Uploads a document to a specific claim.
         """
@@ -393,7 +401,7 @@ class EBrokerClient:
             "document_folder_id": document_folder_id
         }
         return self._make_request("business", "POST", f"/v1/claims/{claim_id}/documents", data=payload)
-    def add_document_to_policy(self, policy_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 111) -> Dict:
+    def add_document_to_policy(self, policy_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 101) -> Dict:
         """
         Uploads a document to a specific policy.
         """

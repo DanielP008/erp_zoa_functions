@@ -41,6 +41,7 @@ def main(request):
     period = request_json.get('period', 7)
     lines = request_json.get('lines', '')
     id_siniestro = request_json.get('id_siniestro', '')
+    num_claim = request_json.get('num_claim', '')
     risk = request_json.get('risk', '')
     name = request_json.get('name', '')
     surname = request_json.get('surname', '')
@@ -213,11 +214,11 @@ def main(request):
                 return ultimo_recibo
         
         if option == 'add_document_claim':
-            if not id_siniestro: return {"error": "Missing mandatory parameter: id_siniestro"}, 400
+            if not num_claim: return {"error": "Missing mandatory parameter: num_claim"}, 400
             if not filename: return {"error": "Missing mandatory parameter: filename"}, 400
             if not base64_content: return {"error": "Missing mandatory parameter: base64_content"}, 400
             
-            return client.add_document_to_claim(id_siniestro, filename, base64_content,notes,0)
+            return client.add_document_to_claim_by_num(num_claim, filename, base64_content,notes)
             
         if option == 'add_document_policy':
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400

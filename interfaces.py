@@ -43,6 +43,25 @@ class RenovacionesRecibosRequest(BaseRequest): # option: 'renovaciones_recibos'
 class GetStatusClaimsRequest(BaseRequest): # option: 'get_status_claims'
     id_siniestro: int # Mandatory
 
+
+class CreateCustomerRequest(BaseRequest): # option: 'create_customer'
+    name: str        # Mandatory
+    surname: str     # Mandatory
+    nif: str         # Mandatory
+    address: str     # Mandatory
+
+class AddDocumentClaimRequest(BaseRequest): # option: 'add_document_claim'
+    num_claim: str # Mandatory
+    filename: str    # Mandatory
+    base64_content: str # Mandatory
+    notes: Optional[str]
+
+class AddDocumentPolicyRequest(BaseRequest): # option: 'add_document_policy'
+    num_poliza: str  # Mandatory
+    filename: str    # Mandatory
+    base64_content: str # Mandatory
+    notes: Optional[str]
+
 # ---------------------------------------------------
 
 # --- OUTPUT INTERFACES (RESPONSES) ---
@@ -58,6 +77,7 @@ class GetClaimByRiskResponse(TypedDict): # option: 'get_claim_by_risk'
     opening_date: str
     risk: str
     status: str
+    
 
 class GetPoliciesResponse(TypedDict): # option: 'get_policies'
     number: str
@@ -97,4 +117,17 @@ class DetalleClienteResponse(TypedDict): # option: 'detalle_cliente'
     phone: str
     email: str
     address: Dict
+
+class CreateCustomerResponse(TypedDict): # option: 'create_customer'
+    id: int
+    legal_id: str
+    name: str
+    surname1: str
+    address: Dict
+
+class AddDocumentResponse(TypedDict): # option: 'add_document_claim' / 'add_document_policy'
+    id: int
+    filename: str
+    description: str
+
 
