@@ -107,7 +107,7 @@ class EBrokerClient:
 
     def post_customer(self, customer: Dict) -> Dict:
         payload = customer.copy()
-        payload.update({
+        payload.append({
             "management_office_id": 1,
             "production_office_id": 1,
             "charge_office_id": 1
