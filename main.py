@@ -224,7 +224,7 @@ def main(request):
             if not filename: return {"error": "Missing mandatory parameter: filename"}, 400
             if not base64_content: return {"error": "Missing mandatory parameter: base64_content"}, 400
             
-            return client.add_document_to_policy_by_num(num_poliza, filename, base64_content,notes,0)
+            return client.add_document_to_policy_by_num(num_poliza, filename, base64_content,notes)
 
         # Customer
         if option == 'get_customer_phone_by_nif':

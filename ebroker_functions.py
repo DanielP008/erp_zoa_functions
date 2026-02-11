@@ -108,9 +108,9 @@ class EBrokerClient:
     def post_customer(self, customer: Dict) -> Dict:
         payload = customer.copy()
         payload.append({
-            "management_office_id": 1,
-            "production_office_id": 1,
-            "charge_office_id": 1
+                "management_office_id": 1,
+                "production_office_id": 1,
+                "charge_office_id": 1
         })
         return self._make_request("crm", "POST", "/v1/customers", data=payload)
 
@@ -393,7 +393,7 @@ class EBrokerClient:
             "document_folder_id": document_folder_id
         }
         return self._make_request("business", "POST", f"/v1/claims/{claim_id}/documents", data=payload)
-    def add_document_to_policy(self, policy_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 0) -> Dict:
+    def add_document_to_policy(self, policy_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 101) -> Dict:
         """
         Uploads a document to a specific policy.
         """
@@ -404,6 +404,13 @@ class EBrokerClient:
             "document_folder_id": document_folder_id
         }
         return self._make_request("business", "POST", f"/v1/policies/{policy_id}/documents", data=payload)
+    def add_document_to_policy_by_num(self, num_poliza: str, filename: str, base64_content: str, notes: str = "") -> Dict:
+        policy_list = self.get_policy_by_num(num_poliza)
+        if not policy_list:
+             raise ValueError(f"Policy number {num_poliza} not found")
+        
+        policy_id = policy_list[0].get('id')
+        return self.add_document_to_policy(policy_id, filename, base64_content, notes,101)
 
     def import_zoa_client_notes(self, client_id: int, notes: List[Dict]) -> Dict:
         """
@@ -413,14 +420,7 @@ class EBrokerClient:
             "notes": notes
         }
         return self._make_request("business", "POST", f"/v1/clients/{client_id}/notes", data=payload)
-
-    def add_document_to_policy_by_num(self, num_poliza: str, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 0) -> Dict:
-        policy_list = self.get_policy_by_num(num_poliza)
-        if not policy_list:
-             raise ValueError(f"Policy number {num_poliza} not found")
-        
-        policy_id = policy_list[0].get('id')
-        return self.add_document_to_policy(policy_id, filename, base64_content, notes, document_folder_id)
+    
     def get_document(self, document_id: int) -> Dict:
         return self._make_request("business", "GET", f"/v1/documents/{document_id}")
 
