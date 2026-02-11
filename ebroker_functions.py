@@ -393,7 +393,7 @@ class EBrokerClient:
             "document_folder_id": document_folder_id
         }
         return self._make_request("business", "POST", f"/v1/claims/{claim_id}/documents", data=payload)
-    def add_document_to_policy(self, policy_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 101) -> Dict:
+    def add_document_to_policy(self, policy_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 111) -> Dict:
         """
         Uploads a document to a specific policy.
         """
