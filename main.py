@@ -233,12 +233,13 @@ def main(request):
         
         if option == 'create_customer':
             if not name: return {"error": "Missing mandatory parameter: name"}, 400
-            if not phone: return {"error": "Missing mandatory parameter: phone"}, 400
+            if not surname: return {"error": "Missing mandatory parameter: surname"}, 400
+            if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
+            if not address: return {"error": "Missing mandatory parameter: address"}, 400
             
             customer_data = {
                 "name": name,
                 "surname": surname,
-                "phone": phone,
                 "legal_id": nif,
                 "address": address
             }
