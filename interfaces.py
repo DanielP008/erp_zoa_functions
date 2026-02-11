@@ -56,15 +56,23 @@ class AddDocumentClaimRequest(BaseRequest): # option: 'add_document_claim'
     base64_content: str # Mandatory
     notes: Optional[str]
 
+
 class AddDocumentPolicyRequest(BaseRequest): # option: 'add_document_policy'
     num_poliza: str  # Mandatory
     filename: str    # Mandatory
     base64_content: str # Mandatory
     notes: Optional[str]
 
+class LoadRenewalsRequest(BaseRequest): # option: 'load_renewals' (no explicit fields needed here for now)
+    pass
+    
 # ---------------------------------------------------
 
 # --- OUTPUT INTERFACES (RESPONSES) ---
+
+class LoadRenewalsResponse(TypedDict): # option: 'load_renewals'
+    pass
+
 
 class GetClaimsResponse(TypedDict): # option: 'get_claims'
     id: str

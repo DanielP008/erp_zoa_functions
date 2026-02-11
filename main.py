@@ -246,6 +246,14 @@ def main(request):
             }
             return client.post_customer(customer_data)
 
+        if option == 'add_document_customer':
+            if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
+            if not filename: return {"error": "Missing mandatory parameter: filename"}, 400
+            if not base64_content: return {"error": "Missing mandatory parameter: base64_content"}, 400
+            
+            return client.add_document_to_customer_by_nif(nif, filename, base64_content,notes)
+
+
         # Candidate
         if option == 'create_candidate':
             if not name: return {"error": "Missing mandatory parameter: name"}, 400
@@ -260,140 +268,17 @@ def main(request):
         if option == 'get_candidate_by_nif':
              if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
              return client.get_candidate_by_nif(nif)
+        
 
-        if option == 'renovaciones_recibos' and system != 'old':
-            # "revisar desde el siguiente dia" -> Start tomorrow
+        if option == 'load_renewals':
             start_date_calc = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            receipts = client.get_upcoming_receipts(start_date=start_date_calc, frequency=14)
+            return []
+    finally:
+        client.close()
+    return {"error": "Invalid option"}, 400
 
-            url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
-            renovaciones_vigentes = []
-            renovaciones = client.get_receipts_label(start_date_calc, int(period))
-            for renovacion in renovaciones:
-                nif = renovacion.get('nif')
-                ramo = renovacion.get('ramo')
-                nombre = renovacion.get('nombre')
-                riesgo = renovacion.get('riesgo')
-                prima = renovacion.get('prima')
-                plantilla = renovacion.get('plantilla')
-                gestor = renovacion.get('gestor')
-                payload_search = {
-                    "company_id": company_id,
-                    "action": "contacts",
-                    "option": "search",
-                    "nif": nif
-                }
-
-                '''            
-                try:
-                    res_zoa = requests.post(url, json=payload_search, timeout=10)
-                    res_zoa.raise_for_status()
-                    datos_zoa = res_zoa.json()
-                    client_phone = datos_zoa.get('phone')
-                except Exception:
-                    continue
-
-                payload_send = {
-                    "company_id": company_id,
-                    "action": "conversations",
-                    "option": "send",
-                    "phone": client_phone,
-                    "template_name": plantilla,
-                    "type": "template",
-                    "params": f"{nombre};{riesgo};{ramo};{prima}",
-                    "image": "", "audio": "", "video": "", "document": "", "location": ""
-                }
-
-                try:
-                    template_enviado = requests.post(url, json=payload_send, timeout=10)
-                except Exception:
-                    pass
-                '''
-                # Add to return list
-                renovaciones_vigentes.append({
-                    'client_nif': nif,
-                    'client_name': nombre,
-                    'gestor': gestor if gestor else 'No manager',
-                    'riesgo': riesgo,
-                    'ramo': ramo,
-                    'prima': prima,
-                    'plantilla': plantilla
-                })
-
-            return renovaciones_vigentes
-
-        elif option == 'renovaciones_recibos' and system == 'old':
-            # "revisar desde el siguiente dia" -> Start tomorrow
-            start_date_calc = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-
-            url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
-            renovaciones_vigentes = []
-            renovaciones = client.get_receipts_label(start_date_calc, int(period))
-            for renovacion in renovaciones:
-                nif = renovacion.get('nif')
-                ramo = renovacion.get('ramo')
-                nombre = renovacion.get('nombre')
-                riesgo = renovacion.get('riesgo')
-                prima = renovacion.get('prima')
-                plantilla = renovacion.get('plantilla')
-                gestor = renovacion.get('gestor')
-                
-                #Get client phone
-                payload_search = {
-                    "company_id": company_id,
-                    "action": "contacts",
-                    "option": "search",
-                    "nif": nif
-                }         
-                try:
-                    res_zoa = requests.post(url, json=payload_search, timeout=10)
-                    res_zoa.raise_for_status()
-                    datos_zoa = res_zoa.json()
-                    client_phone = datos_zoa.get('phone')
-                except Exception:
-                    continue
-                
-                #Get template id
-                url = "https://api.zoasuite.com/api/flows"
-                payload_send = {
-                    "company_id": company_id,
-                    "action": "conversations",
-                    "option": "get_template_id",
-                    "template_name": plantilla,
-                }
-                headers = {
-                    "Content-Type": "application/json"
-                }
-                #Params for template
-                params = f"{nombre};{riesgo};{ramo};{prima}"
-                
-                try:
-                    Id_Plantilla = requests.post(url, headers=headers,data=json.dumps(payload_send), timeout=10)
-                except Exception:
-                    pass
-                url = f"https://europe-west3-zoa-suite.cloudfunctions.net/write_WP?phone={client_phone}&option=cloud_template&message={plantilla}&message_id={Id_Plantilla}&header_params=&body_params={params}&company={company_id}"
-
-                try:
-                    template_enviado = requests.post(url, timeout=10)
-                except Exception:
-                    pass
-                
-                # Add to return list
-                renovaciones_vigentes.append({
-                    'client_nif': nif,
-                    'client_name': nombre,
-                    'gestor': gestor if gestor else 'No manager',
-                    'riesgo': riesgo,
-                    'ramo': ramo,
-                    'prima': prima,
-                    'plantilla': plantilla
-                })
-    except Exception as e:
-        return {'error': f"Error executing operation {option}: {str(e)}"}, 500
-
-
-
-
-def get_nif_by_phone(phone):
+def get_nif_by_phone(company_id, phone):
     url = "https://flow-zoav2-673887944015.europe-southwest1.run.app"
     payload_search = {
         "company_id": company_id,

@@ -287,21 +287,20 @@ class EBrokerClient:
                         raise ValueError
                 except ValueError:
                     start_date = datetime.now()
-        # Calculate boundaries for > and < logic
-        # We want receipts starting from start_date, so ini_date must be start_date - 1 day
         ini_date = (start_date - timedelta(days=1)).strftime("%Y-%m-%d")
-        
-        # We want receipts up to start_date + frequency (exclusive of the end date in python slice terms, but API is <)
-        # If frequency is 1, we want [start, start]. start+1 is effective upper bound for <
         fin_date = (start_date + timedelta(days=frequency)).strftime("%Y-%m-%d")
+        endpoint = f"/v1/receipts?query=dueDate>{ini_date}&query=dueDate<{fin_date}&size=2000"
+        receipts = self._make_request("business", "GET", endpoint)
 
-        # User requested: /v1/receipts?query=dueDate>{ini_date}&query=dueDate<{fin_date}
-        # Note: We construct the endpoint manually to ensure multiple 'query' parameters are passed correctly if requests dict doesn't handle it the way we prefer, 
-        # but _make_request appends params. Let's pass it in endpoint string like user showed to be safe.
-        endpoint = f"/v1/receipts?query=dueDate>{ini_date}&query=dueDate<{fin_date}"
-        
-        # We don't pass params dict since we put it in the URL
-        return self._make_request("business", "GET", endpoint)
+        # Filter out receipts with status description 'ANULADO'
+        filtered_receipts = []
+        if isinstance(receipts, list):
+            for receipt in receipts:
+                status = receipt.get('status', {})
+                if status and status.get('description') != 'ANULADO':
+                    filtered_receipts.append(receipt)
+            return filtered_receipts
+        return receipts
     
     def get_receipt_labels(self, receipt_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts/{receipt_id}/labels")
@@ -412,6 +411,25 @@ class EBrokerClient:
             "document_folder_id": document_folder_id
         }
         return self._make_request("business", "POST", f"/v1/policies/{policy_id}/documents", data=payload)
+    def add_document_to_customer_by_nif(self, nif: str, filename: str, base64_content: str, notes: str = "") -> Dict:
+        customer_list = self.get_customer_by_nif(nif)
+        if not customer_list:
+             raise ValueError(f"Customer number {nif} not found")
+        
+        customer_id = customer_list[0].get('id')
+        return self.add_document_to_customer(customer_id, filename, base64_content, notes,101)
+
+    def add_document_to_customer(self, customer_id: int, filename: str, base64_content: str, notes: str = "", document_folder_id: int = 101) -> Dict:
+        """
+        Uploads a document to a specific customer.
+        """
+        payload = {
+            "filename": filename,
+            "notes": notes,
+            "base64_content": base64_content,
+            "document_folder_id": document_folder_id
+        }
+        return self._make_request("business", "POST", f"/v1/customers/{customer_id}/documents", data=payload)
     def add_document_to_policy_by_num(self, num_poliza: str, filename: str, base64_content: str, notes: str = "") -> Dict:
         policy_list = self.get_policy_by_num(num_poliza)
         if not policy_list:
