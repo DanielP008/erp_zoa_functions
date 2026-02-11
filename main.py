@@ -240,7 +240,7 @@ def main(request):
             customer_data = {
                 "name": name,
                 "surname": surname,
-                "legal_id": nif,
+                "legalId": nif,
                 "address": address
             }
             return client.post_customer(customer_data)
