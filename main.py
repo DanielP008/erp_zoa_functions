@@ -43,6 +43,8 @@ def main(request):
     id_siniestro = request_json.get('id_siniestro', '')
     risk = request_json.get('risk', '')
     name = request_json.get('name', '')
+    surname = request_json.get('surname', '')
+    address = request_json.get('address', '')
     #Document data
     filename = request_json.get('filename', '')
     base64_content = request_json.get('base64_content', '')
@@ -228,6 +230,19 @@ def main(request):
         if option == 'get_customer_phone_by_nif':
             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             return client.get_customer_phone_by_nif(nif)
+        
+        if option == 'create_customer':
+            if not name: return {"error": "Missing mandatory parameter: name"}, 400
+            if not phone: return {"error": "Missing mandatory parameter: phone"}, 400
+            
+            customer_data = {
+                "name": name,
+                "surname": surname,
+                "phone": phone,
+                "legal_id": nif,
+                "address": address
+            }
+            return client.post_customer(customer_data)
 
         # Candidate
         if option == 'create_candidate':

@@ -105,6 +105,15 @@ class EBrokerClient:
 
         return self._make_request("crm", "GET", f"/v1/customers/{customer_id}/policies")
 
+    def post_customer(self, customer: Dict) -> Dict:
+        payload = customer.copy()
+        payload.update({
+            "management_office_id": 1,
+            "production_office_id": 1,
+            "charge_office_id": 1
+        })
+        return self._make_request("crm", "POST", "/v1/customers", data=payload)
+
     def get_customer_active_policies(self, nif: str) -> List[Dict]:
         polizas_vigentes = []
         polizas = self.get_customer_policies(nif)
