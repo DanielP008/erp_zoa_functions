@@ -270,10 +270,11 @@ def main(request):
              return client.get_candidate_by_nif(nif)
         
 
+
+
         if option == 'load_renewals':
-            start_date_calc = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-            receipts = client.get_upcoming_receipts(start_date=start_date_calc, frequency=14)
-            return []
+            return client.process_load_renewals()
+
     finally:
         client.close()
     return {"error": "Invalid option"}, 400

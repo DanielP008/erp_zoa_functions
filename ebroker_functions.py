@@ -483,6 +483,66 @@ class EBrokerClient:
                 result.append({'description': doc_recibo.get('description'), 'filename': doc_recibo.get('filename'), 'data': doc.get('base64_content')})
         return result
 
+    def process_load_renewals(self, start_date=None, frequency: int = 7) -> List[Dict]:
+        if start_date is None:
+            start_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            
+        upcoming_renewals_policies = self.get_upcoming_renewals(start_date=start_date, frequency=frequency)
+        result_list = []
+
+        for policy in upcoming_renewals_policies:
+            policy_num = policy.get('number')
+            if not policy_num:
+                continue
+
+            receipts = self.get_receipts_by_num_policy(policy_num)
+            
+            latest_p = None
+            latest_c = None
+
+            # Sort by dueDate descending
+            receipts.sort(key=lambda x: x.get('dueDate', ''), reverse=True)
+
+            for r in receipts:
+                status_id = r.get('status', {}).get('id', '')
+                if not latest_p and 'P' in status_id:
+                    latest_p = r
+                if not latest_c and 'C' in status_id:
+                    latest_c = r
+                
+                if latest_p and latest_c:
+                    break
+            
+            if latest_p and latest_c:
+                try:
+                    p_premium = float(latest_p.get('total_premium', 0))
+                    c_premium = float(latest_c.get('total_premium', 0))
+
+                    if p_premium > 0:
+                        diff = abs(p_premium - c_premium)
+                        percent_diff = diff / p_premium
+
+                        if percent_diff < 0.08:
+                            result_list.append({
+                                "policy_number": policy_num,
+                                "client_nif": policy.get("customer", {}).get("legal_id"),
+                                "p_receipt": {
+                                    "id": latest_p.get("id"),
+                                    "amount": p_premium,
+                                    "status": latest_p.get("status", {}).get("description")
+                                },
+                                "c_receipt": {
+                                    "id": latest_c.get("id"),
+                                    "amount": c_premium,
+                                    "status": latest_c.get("status", {}).get("description")
+                                },
+                                "percent_diff": round(percent_diff * 100, 2)
+                            })
+                except (ValueError, TypeError):
+                    continue
+
+        return result_list
+
 
 # ========== Utility function relocated to utils.py ==========
 
