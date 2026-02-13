@@ -506,7 +506,7 @@ class EBrokerClient:
 
     def process_load_renewals(self, start_date=None, frequency: int = 7) -> List[Dict]:
         if start_date is None:
-            start_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+            start_date = (datetime.now() + timedelta(days=1))
             
         upcoming_renewals_policies = self.get_upcoming_renewals(start_date=start_date, frequency=frequency)
         result_list = []
@@ -567,7 +567,7 @@ class EBrokerClient:
 
 
     def test_renewals(self) -> Dict:
-        start_date = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        start_date = (datetime.now() + timedelta(days=1))
             
         upcoming_renewals_policies = self.get_upcoming_renewals(start_date=start_date, frequency=30) 
 
