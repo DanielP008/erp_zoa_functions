@@ -625,6 +625,11 @@ class EBrokerClient:
         
         return {"message": "No matching policy found in the next 30 days"}
 
+    def close(self):
+        for session in self.sessions.values():
+            session.close()
+
+
 
 # ========== Utility function relocated to utils.py ==========
 

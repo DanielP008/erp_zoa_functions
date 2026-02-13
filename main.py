@@ -268,12 +268,10 @@ def main(request):
         if option == 'get_candidate_by_nif':
              if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
              return client.get_candidate_by_nif(nif)
-        
-
-
 
         if option == 'load_renewals':
             return client.process_load_renewals()
+
         if option == 'test_renewals':
             return client.test_renewals()
 
