@@ -459,7 +459,9 @@ class EBrokerClient:
                 result.append({'description': doc_recibo.get('description'), 'filename': doc_recibo.get('filename'), 'data': doc.get('base64_content')})
         return result
 
-    def process_load_renewals(self, start_date=None, frequency: int = 7) -> List[Dict]:
+    def process_load_renewals(self, start_date=None, frequency: int = 7, 
+                              percent_threshold: float = 8.0, 
+                              amount_threshold: float = 0.0) -> List[Dict]:
         if start_date is None:
             start_date = (datetime.now() + timedelta(days=1))
             
@@ -495,10 +497,15 @@ class EBrokerClient:
                     c_premium = float(latest_c.get('total_premium', 0))
 
                     if p_premium > 0:
-                        diff = abs(p_premium - c_premium)
-                        percent_diff = diff / p_premium
+                        diff = p_premium - c_premium
+                        percent_diff = (diff / c_premium) * 100 if c_premium > 0 else 0
 
-                        if percent_diff < 0.08:
+                        # Flag if either percentage or absolute amount exceeds threshold
+                        is_flagged = percent_diff >= percent_threshold
+                        if amount_threshold > 0:
+                            is_flagged = is_flagged or (diff >= amount_threshold)
+
+                        if is_flagged:
                             result_list.append({
                                 "policy_number": policy_num,
                                 "client_nif": policy.get("customer", {}).get("legal_id"),
@@ -512,16 +519,18 @@ class EBrokerClient:
                                     "amount": c_premium,
                                     "status": latest_c.get("status", {}).get("description")
                                 },
-                                "percent_diff": round(percent_diff * 100, 2)
+                                "percent_diff": round(percent_diff, 2),
+                                "amount_diff": round(diff, 2)
                             })
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, ZeroDivisionError):
                     continue
 
         return result_list
 
 
 
-    def test_renewals(self) -> Dict:
+    def test_renewals(self, percent_threshold: float = 8.0, 
+                      amount_threshold: float = 0.0) -> Dict:
         start_date = (datetime.now() + timedelta(days=1))
             
         upcoming_renewals_policies = self.get_upcoming_renewals(start_date=start_date, frequency=30) 
@@ -555,10 +564,14 @@ class EBrokerClient:
                     c_premium = float(latest_c.get('total_premium', 0))
 
                     if p_premium > 0:
-                        diff = abs(p_premium - c_premium)
-                        percent_diff = diff / p_premium
+                        diff = p_premium - c_premium
+                        percent_diff = (diff / c_premium) * 100 if c_premium > 0 else 0
 
-                        if percent_diff < 0.08:
+                        is_flagged = percent_diff >= percent_threshold
+                        if amount_threshold > 0:
+                            is_flagged = is_flagged or (diff >= amount_threshold)
+
+                        if is_flagged:
                             # Found one! Return it.
                             return {
                                 "policy_number": policy_num,
@@ -573,9 +586,10 @@ class EBrokerClient:
                                     "amount": c_premium,
                                     "status": latest_c.get("status", {}).get("description")
                                 },
-                                "percent_diff": round(percent_diff * 100, 2)
+                                "percent_diff": round(percent_diff, 2),
+                                "amount_diff": round(diff, 2)
                             }
-                except (ValueError, TypeError):
+                except (ValueError, TypeError, ZeroDivisionError):
                     continue
         
         return {"message": "No matching policy found in the next 30 days"}

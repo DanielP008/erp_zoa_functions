@@ -63,8 +63,9 @@ class AddDocumentPolicyRequest(BaseRequest): # option: 'add_document_policy'
     base64_content: str # Mandatory
     notes: Optional[str]
 
-class LoadRenewalsRequest(BaseRequest): # option: 'load_renewals' (no explicit fields needed here for now)
-    pass
+class LoadRenewalsRequest(BaseRequest): # option: 'load_renewals'
+    percent_threshold: Optional[float]
+    amount_threshold: Optional[float]
     
 # ---------------------------------------------------
 
