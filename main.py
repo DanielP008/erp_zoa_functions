@@ -275,6 +275,9 @@ def main(request):
         if option == 'load_renewals':
             return client.process_load_renewals()
 
+    except Exception as e:
+        return {'error': f"Error executing operation {option}: {str(e)}"}, 500
+
     finally:
         client.close()
     return {"error": "Invalid option"}, 400
