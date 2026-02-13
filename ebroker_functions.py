@@ -3,6 +3,7 @@ from utils import get_phones
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
+import zoa_functions
 
 class EBrokerAPIError(Exception):
     pass
@@ -459,7 +460,7 @@ class EBrokerClient:
                 result.append({'description': doc_recibo.get('description'), 'filename': doc_recibo.get('filename'), 'data': doc.get('base64_content')})
         return result
 
-    def process_load_renewals(self, start_date=None, frequency: int = 7, 
+    def process_load_renewals(self, company_id: str, start_date=None, frequency: int = 7, 
                               percent_threshold: float = 8.0, 
                               amount_threshold: float = 0.0) -> List[Dict]:
         if start_date is None:
@@ -505,23 +506,60 @@ class EBrokerClient:
                         if amount_threshold > 0:
                             is_flagged = is_flagged or (diff >= amount_threshold)
 
+                        # Extract phone number from customer data
+                        customer = policy.get("customer", {})
+                        client_phone = ""
+                        phones = customer.get("phones", [])
+                        if phones and isinstance(phones, list):
+                            client_phone = str(phones[0].get("number", ""))
+                        elif isinstance(customer.get("phone"), str):
+                            client_phone = customer.get("phone")
+
+                        # Differentiate between Type A and Type B
                         if is_flagged:
-                            result_list.append({
-                                "policy_number": policy_num,
-                                "client_nif": policy.get("customer", {}).get("legal_id"),
-                                "p_receipt": {
-                                    "id": latest_p.get("id"),
-                                    "amount": p_premium,
-                                    "status": latest_p.get("status", {}).get("description")
-                                },
-                                "c_receipt": {
-                                    "id": latest_c.get("id"),
-                                    "amount": c_premium,
-                                    "status": latest_c.get("status", {}).get("description")
-                                },
-                                "percent_diff": round(percent_diff, 2),
-                                "amount_diff": round(diff, 2)
-                            })
+                            title = f"Renovación tipo A {policy_num}"
+                            tag = f">{int(percent_threshold)}"
+                        else:
+                            title = f"Renovación tipo B {policy_num}"
+                            tag = f"<{int(percent_threshold)}"
+
+                        # Create Card in Zoa
+                        card_payload = {
+                            "company_id": company_id,
+                            "action": "cards",
+                            "option": "create",
+                            "title": title,
+                            "phone": client_phone,
+                            "card_type": "opportunity",
+                            "pipeline_name": "Renovaciones",
+                            "stage_name": "Nuevo",
+                            "amount": p_premium,
+                            "tags_name": tag
+                        }
+                        
+                        try:
+                            zoa_functions.create_card(card_payload)
+                        except Exception:
+                            pass # Or log error
+
+                        # All processed renewals are added to result_list
+                        result_list.append({
+                            "policy_number": policy_num,
+                            "client_nif": customer.get("legal_id"),
+                            "p_receipt": {
+                                "id": latest_p.get("id"),
+                                "amount": p_premium,
+                                "status": latest_p.get("status", {}).get("description")
+                            },
+                            "c_receipt": {
+                                "id": latest_c.get("id"),
+                                "amount": c_premium,
+                                "status": latest_c.get("status", {}).get("description")
+                            },
+                            "percent_diff": round(percent_diff, 2),
+                            "amount_diff": round(diff, 2),
+                            "is_flagged": is_flagged
+                        })
                 except (ValueError, TypeError, ZeroDivisionError):
                     continue
 

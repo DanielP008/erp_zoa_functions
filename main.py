@@ -274,6 +274,7 @@ def main(request):
             amount_threshold = request_json.get('amount_threshold', 0.0)
 
             return client.process_load_renewals(
+                company_id=company_id,
                 percent_threshold=percent_threshold,
                 amount_threshold=amount_threshold
             )
