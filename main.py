@@ -279,13 +279,7 @@ def main(request):
                 amount_threshold=amount_threshold
             )
 
-        if option == 'test_renewals':
-            percent_threshold = request_json.get('percent_threshold', 8.0)
-            amount_threshold = request_json.get('amount_threshold', 0.0)
-            return client.test_renewals(
-                percent_threshold=percent_threshold,
-                amount_threshold=amount_threshold
-            )
+
 
     except Exception as e:
         return {'error': f"Error executing operation {option}: {str(e)}"}, 500

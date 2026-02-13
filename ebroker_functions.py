@@ -518,10 +518,10 @@ class EBrokerClient:
                         # Differentiate between Type A and Type B
                         if is_flagged:
                             title = f"Renovación tipo A {policy_num}"
-                            tag = f">{int(percent_threshold)}"
+                            tag = f">{int(percent_threshold)}%"
                         else:
                             title = f"Renovación tipo B {policy_num}"
-                            tag = f"<{int(percent_threshold)}"
+                            tag = f"<{int(percent_threshold)}%"
 
                         # Create Card in Zoa
                         card_payload = {
@@ -529,7 +529,7 @@ class EBrokerClient:
                             "action": "cards",
                             "option": "create",
                             "title": title,
-                            "phone": client_phone,
+                            "phone": "34" + client_phone,
                             "card_type": "opportunity",
                             "pipeline_name": "Renovaciones",
                             "stage_name": "Nuevo",
@@ -565,72 +565,6 @@ class EBrokerClient:
 
         return result_list
 
-
-
-    def test_renewals(self, percent_threshold: float = 8.0, 
-                      amount_threshold: float = 0.0) -> Dict:
-        start_date = (datetime.now() + timedelta(days=1))
-            
-        upcoming_renewals_policies = self.get_upcoming_renewals(start_date=start_date, frequency=30) 
-
-        for policy in upcoming_renewals_policies:
-            policy_num = policy.get('number')
-            if not policy_num:
-                continue
-
-            receipts = self.get_receipts_by_num_policy(policy_num)
-            
-            latest_p = None
-            latest_c = None
-
-            # Sort by dueDate descending
-            receipts.sort(key=lambda x: x.get('dueDate', ''), reverse=True)
-
-            for r in receipts:
-                status_id = r.get('status', {}).get('id', '')
-                if not latest_p and 'P' in status_id:
-                    latest_p = r
-                if not latest_c and 'C' in status_id:
-                    latest_c = r
-                
-                if latest_p and latest_c:
-                    break
-            
-            if latest_p and latest_c:
-                try:
-                    p_premium = float(latest_p.get('total_premium', 0))
-                    c_premium = float(latest_c.get('total_premium', 0))
-
-                    if p_premium > 0:
-                        diff = p_premium - c_premium
-                        percent_diff = (diff / c_premium) * 100 if c_premium > 0 else 0
-
-                        is_flagged = percent_diff >= percent_threshold
-                        if amount_threshold > 0:
-                            is_flagged = is_flagged or (diff >= amount_threshold)
-
-                        if is_flagged:
-                            # Found one! Return it.
-                            return {
-                                "policy_number": policy_num,
-                                "client_nif": policy.get("customer", {}).get("legal_id"),
-                                "p_receipt": {
-                                    "id": latest_p.get("id"),
-                                    "amount": p_premium,
-                                    "status": latest_p.get("status", {}).get("description")
-                                },
-                                "c_receipt": {
-                                    "id": latest_c.get("id"),
-                                    "amount": c_premium,
-                                    "status": latest_c.get("status", {}).get("description")
-                                },
-                                "percent_diff": round(percent_diff, 2),
-                                "amount_diff": round(diff, 2)
-                            }
-                except (ValueError, TypeError, ZeroDivisionError):
-                    continue
-        
-        return {"message": "No matching policy found in the next 30 days"}
 
     def close(self):
         for session in self.sessions.values():
