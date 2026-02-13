@@ -107,7 +107,7 @@ class EBrokerClient:
 
     def post_customer(self, customer: Dict) -> Dict:
         payload = customer.copy()
-        payload.append({
+        payload.update({
                 "management_office_id": 1,
                 "production_office_id": 1,
                 "charge_office_id": 1
@@ -355,51 +355,6 @@ class EBrokerClient:
                         'gestor': gestor
                     })
         return result
-
-    
-
-    #Renewals
-
-    def get_upcoming_renewals(self, start_date=None, frequency: int = 7):
-        if start_date is None:
-            start_date = datetime.now()
-        master_policy_list = []
-        for i in range(frequency):
-            current_date = start_date + timedelta(days=i)
-            date_str = current_date.strftime("%Y-%m-%d")
-            policies_day = self.get_policies_for_specific_date(date_str)
-            master_policy_list.append(policies_day)
-        return master_policy_list
-
-    def get_policy_labels(self, policy_id: int) -> List[Dict]:
-        return self._make_request("business", "GET", f"/v1/policies/{policy_id}/labels")
-
-    def get_renewals_lable(self, start_date, frequency):
-        if start_date is None:
-            start_date = datetime.now()
-        result = []
-        polizas = self.get_upcoming_renewals(start_date,frequency)
-        for poliza in polizas:
-            cliente = poliza.get('customer')
-            lbls = self.get_policy_labels(poliza.get('id'))
-            for lbl in lbls:
-                if lbl != []:
-                    nombre = str(cliente.get('name', ''))
-                    ramo = str(poliza.get('subcategory', {}).get('name', ''))
-                    riesgo = str(poliza.get('risk', ''))
-                    prima = str(self.get_receipts_by_num_policy(poliza.get('number')).get('amount'))
-                    nif = str(cliente.get('legal_id'))
-                    gestor = str(cliente.get('management_user'))
-                    plantilla = str(lbl.get("value"))
-                    result.append({
-                        'nif':nif,
-                        'ramo':ramo,
-                        'nombre':nombre,
-                        'riesgo':riesgo,
-                        'prima':prima, 
-                        'plantilla':plantilla,
-                        'gestor': gestor
-                    })
 
     #DOCUMENTS
     def add_document_to_claim_by_num(self, num_claim: str, filename: str, base64_content: str, notes: str = "") -> Dict:

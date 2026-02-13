@@ -70,8 +70,19 @@ class LoadRenewalsRequest(BaseRequest): # option: 'load_renewals' (no explicit f
 
 # --- OUTPUT INTERFACES (RESPONSES) ---
 
-class LoadRenewalsResponse(TypedDict): # option: 'load_renewals'
-    pass
+class ReceiptInfo(TypedDict):
+    id: int
+    amount: float
+    status: str
+
+class LoadRenewalsEntry(TypedDict):
+    policy_number: str
+    client_nif: str
+    p_receipt: ReceiptInfo
+    c_receipt: ReceiptInfo
+    percent_diff: float
+
+LoadRenewalsResponse = List[LoadRenewalsEntry]
 
 
 class GetClaimsResponse(TypedDict): # option: 'get_claims'
