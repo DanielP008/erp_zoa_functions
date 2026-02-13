@@ -302,6 +302,27 @@ class EBrokerClient:
             return filtered_receipts
         return receipts
     
+    def get_upcoming_renewals(self, start_date=None, frequency: int = 7) -> List[Dict]:
+        receipts = self.get_upcoming_receipts(start_date, frequency)
+        if not receipts:
+            return []
+            
+        policies = {}
+        for receipt in receipts:
+            policy = receipt.get('policy')
+            if policy:
+                # Ensure customer data is present since process_load_renewals needs it
+                if 'customer' not in policy and 'customer' in receipt:
+                     policy['customer'] = receipt['customer']
+                     
+                policy_id = policy.get('id')
+                # Use policy number as key if ID is missing? No, ID should be there.
+                if policy_id and policy_id not in policies:
+                    policies[policy_id] = policy
+                    
+        return list(policies.values())
+
+    
     def get_receipt_labels(self, receipt_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts/{receipt_id}/labels")
 
