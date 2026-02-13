@@ -347,7 +347,7 @@ class EBrokerClient:
             current_date = start_date + timedelta(days=i)
             date_str = current_date.strftime("%Y-%m-%d")
             policies_day = self.get_policies_for_specific_date(date_str)
-            master_policy_list.extend(policies_day)
+            master_policy_list.append(policies_day)
         return master_policy_list
 
     def get_policy_labels(self, policy_id: int) -> List[Dict]:
@@ -364,9 +364,9 @@ class EBrokerClient:
             for lbl in lbls:
                 if lbl != []:
                     nombre = str(cliente.get('name', ''))
-                    ramo = str(polizas.get('subcategory', {}).get('name', ''))
+                    ramo = str(poliza.get('subcategory', {}).get('name', ''))
                     riesgo = str(poliza.get('risk', ''))
-                    prima = str(self.get_receipts_by_num_policy(polizas.get('number')).get('amount'))
+                    prima = str(self.get_receipts_by_num_policy(poliza.get('number')).get('amount'))
                     nif = str(cliente.get('legal_id'))
                     gestor = str(cliente.get('management_user'))
                     plantilla = str(lbl.get("value"))
