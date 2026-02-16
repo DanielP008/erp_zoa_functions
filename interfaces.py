@@ -60,7 +60,8 @@ class AddDocumentClaimRequest(BaseRequest): # option: 'add_document_claim'
     notes: Optional[str]
 
 class GetReturnedReceiptsRequest(BaseRequest): # option: 'get_returned_receipts'
-    pass
+    start_date: Optional[str]
+    end_date: Optional[str]
 
 class AddDocumentPolicyRequest(BaseRequest): # option: 'add_document_policy'
     num_poliza: str  # Mandatory

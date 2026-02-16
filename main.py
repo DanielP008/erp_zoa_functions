@@ -50,6 +50,8 @@ def main(request):
     filename = request_json.get('filename', '')
     base64_content = request_json.get('base64_content', '')
     notes = request_json.get('notes', '')
+    start_date = request_json.get('start_date')
+    end_date = request_json.get('end_date')
 
 
 
@@ -200,7 +202,7 @@ def main(request):
             return cust_acc_num
 
         if option == 'get_returned_receipts':
-            return client.get_returned_receipts()
+            return client.get_returned_receipts(start_date, end_date)
 
         # Documents
         if option == 'documento_recibo':

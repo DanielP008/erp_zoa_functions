@@ -316,7 +316,7 @@ class EBrokerClient:
         """
         if not start_date:
             start_date = datetime.now() - timedelta(days=7)
-        if not end_date:
+        if not end_date: 
             end_date = datetime.now()
             
         # Ensure dates are datetime objects if strings are passed (basic handling)
