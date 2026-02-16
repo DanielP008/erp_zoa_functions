@@ -199,6 +199,9 @@ def main(request):
                     break
             return cust_acc_num
 
+        if option == 'get_returned_receipts':
+            return client.get_returned_receipts()
+
         # Documents
         if option == 'documento_recibo':
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400

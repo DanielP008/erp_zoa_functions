@@ -306,6 +306,56 @@ class EBrokerClient:
             return filtered_receipts
         return receipts
     
+    def get_returned_receipts(self, start_date=None, end_date=None) -> List[Dict]:
+        """
+        Retrieves receipts with specific returned statuses within a date range.
+        Statuses:
+        - PENDIENTE/DVTO.BANCO
+        - PENDIENTE/DVTO. EN CÍA
+        - PENDIENTE/DVTO.BANCO/ENTE
+        """
+        if not start_date:
+            start_date = datetime.now() - timedelta(days=7)
+        if not end_date:
+            end_date = datetime.now()
+            
+        # Ensure dates are datetime objects if strings are passed (basic handling)
+        if isinstance(start_date, str):
+            start_date = datetime.strptime(start_date, "%Y-%m-%d")
+        if isinstance(end_date, str):
+            end_date = datetime.strptime(end_date, "%Y-%m-%d")
+
+        str_start = start_date.strftime("%Y-%m-%d")
+        str_end = end_date.strftime("%Y-%m-%d")
+
+        statuses = [
+            "PENDIENTE/DVTO.BANCO",
+            "PENDIENTE/DVTO. EN CÍA",
+            "PENDIENTE/DVTO.BANCO/ENTE"
+        ]
+
+        all_receipts = []
+        
+        for status in statuses:
+            params = {
+                'query': [
+                    f"status.description:{status}",
+                    f"effectDate>{str_start}",
+                    f"effectDate<{str_end}"
+                ],
+                'size': 2000
+            }
+            
+            try:
+                receipts = self._make_request("business", "GET", "/v1/receipts", params=params)
+                if isinstance(receipts, list):
+                    all_receipts.extend(receipts)
+            except Exception as e:
+                print(f"Error fetching receipts for status {status}: {e}")
+                continue
+
+        return all_receipts
+    
     def get_upcoming_renewals(self, start_date=None, frequency: int = 7) -> List[Dict]:
         receipts = self.get_upcoming_receipts(start_date, frequency)
         if not receipts:

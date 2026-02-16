@@ -57,6 +57,11 @@ class AddDocumentClaimRequest(BaseRequest): # option: 'add_document_claim'
     notes: Optional[str]
 
 
+    notes: Optional[str]
+
+class GetReturnedReceiptsRequest(BaseRequest): # option: 'get_returned_receipts'
+    pass
+
 class AddDocumentPolicyRequest(BaseRequest): # option: 'add_document_policy'
     num_poliza: str  # Mandatory
     filename: str    # Mandatory
