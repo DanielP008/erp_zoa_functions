@@ -66,6 +66,31 @@ class AddDocumentPolicyRequest(BaseRequest): # option: 'add_document_policy'
 class LoadRenewalsRequest(BaseRequest): # option: 'load_renewals'
     percent_threshold: Optional[float]
     amount_threshold: Optional[float]
+
+class GetNewFlaggedClaimsRequest(BaseRequest): # option: 'get_new_flagged_claims'
+    pass
+
+class GetNewPoliciesTodayRequest(BaseRequest): # option: 'get_new_policies_today'
+    pass
+
+class GetCustomerPhoneByNifRequest(BaseRequest): # option: 'get_customer_phone_by_nif'
+    nif: str         # Mandatory
+
+class AddDocumentCustomerRequest(BaseRequest): # option: 'add_document_customer'
+    nif: str         # Mandatory
+    filename: str    # Mandatory
+    base64_content: str # Mandatory
+    notes: Optional[str]
+
+class CreateCandidateRequest(BaseRequest): # option: 'create_candidate'
+    name: str        # Mandatory
+    phone: str       # Mandatory
+
+class GetNewCandidatesTodayRequest(BaseRequest): # option: 'get_new_candidates_today'
+    pass
+
+class GetCandidateByNifRequest(BaseRequest): # option: 'get_candidate_by_nif'
+    nif: str         # Mandatory
     
 # ---------------------------------------------------
 
@@ -151,3 +176,29 @@ class AddDocumentResponse(TypedDict): # option: 'add_document_claim' / 'add_docu
     description: str
 
 
+
+
+class GetNewFlaggedClaimsEntry(TypedDict):
+    desc_siniestro: str
+    client_name: str
+    gestor: Union[str, Dict]
+
+GetNewFlaggedClaimsResponse = List[GetNewFlaggedClaimsEntry]
+
+class CandidateResponse(TypedDict):
+    id: int
+    name: str
+    phone: str
+    signupDate: str
+
+GetNewCandidatesTodayResponse = List[CandidateResponse]
+GetCandidateByNifResponse = List[CandidateResponse]
+
+GetNewPoliciesTodayResponse = List[Dict] # Generic Dict for full policy object
+
+GetCustomerPhoneByNifResponse = Optional[str]
+
+class AddDocumentCustomerResponse(TypedDict): # option: 'add_document_customer' reuse if possible or new
+    id: int
+    filename: str
+    description: str

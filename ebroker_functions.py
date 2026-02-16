@@ -264,6 +264,9 @@ class EBrokerClient:
         })
         return self._make_request("crm", "POST", "/v1/candidates", data=payload)
 
+    def get_new_candidates_today(self) -> List[Dict]:
+        return self._make_request("crm", "GET", f"/v1/candidates?query=signupDate:{datetime.now().strftime('%Y-%m-%d')}")
+
     #RECEIPTS
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
@@ -426,6 +429,9 @@ class EBrokerClient:
     
     def get_document(self, document_id: int) -> Dict:
         return self._make_request("business", "GET", f"/v1/documents/{document_id}")
+
+    def get_new_policies_today(self) -> List[Dict]:
+        return self._make_request("business", "GET", f"/v1/policies?query=createdDate:{datetime.now().strftime('%Y-%m-%d')}")
 
     def get_policy_doc_by_policynum(self, policy_num: str) -> List[Dict]:
         resultado = []

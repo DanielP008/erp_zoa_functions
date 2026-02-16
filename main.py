@@ -174,6 +174,8 @@ def main(request):
             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             return client.get_all_policys_by_client_category(nif, lines,company_id)
 
+        if option == 'get_new_policies':
+            return client.get_new_policies_today()
 
         if option == 'get_policy_by_num':
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
@@ -264,6 +266,9 @@ def main(request):
                 "phone": phone
             }
             return client.post_candidate(candidate_data)
+
+        if option == 'get_new_candidates':
+            return client.get_new_candidates_today()
         
         if option == 'get_candidate_by_nif':
              if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
