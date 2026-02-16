@@ -316,7 +316,7 @@ class EBrokerClient:
         """
         if not start_date:
             start_date = datetime.now() - timedelta(days=7)
-        if not end_date: 
+        if not end_date:
             end_date = datetime.now()
             
         # Ensure dates are datetime objects if strings are passed (basic handling)
@@ -337,17 +337,9 @@ class EBrokerClient:
         all_receipts = []
         
         for status in statuses:
-            params = {
-                'query': [
-                    f"status.description:{status}",
-                    f"effectDate>{str_start}",
-                    f"effectDate<{str_end}"
-                ],
-                'size': 2000
-            }
             
             try:
-                receipts = self._make_request("business", "GET", "/v1/receipts", params=params)
+                receipts = self._make_request("business", "GET", "/v1/receipts?query=status.description:{status},effectDate>{str_start},effectDate<{str_end}?size=2000")
                 if isinstance(receipts, list):
                     all_receipts.extend(receipts)
             except Exception as e:
