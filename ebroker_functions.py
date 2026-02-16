@@ -337,9 +337,11 @@ class EBrokerClient:
         all_receipts = []
         
         for status in statuses:
-            
             try:
-                receipts = self._make_request("business", "GET", "/v1/receipts?query=status.description:{status},effectDate>{str_start},effectDate<{str_end}?size=2000")
+                # User requested no URL encoding for spaces, so we construct the URL manually.
+                # Corrected syntax: `?query=...,...,...&size=2000` (ampersand for size)
+                url = f"/v1/receipts?query=status.description:{status},effectDate>{str_start},effectDate<{str_end}&size=2000"
+                receipts = self._make_request("business", "GET", url)
                 if isinstance(receipts, list):
                     all_receipts.extend(receipts)
             except Exception as e:
