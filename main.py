@@ -6,6 +6,8 @@ import json
 import firebase_admin
 from firebase_admin import db,credentials,storage,firestore
 from datetime import datetime, timedelta
+from Merlin.merlin_client import create_merlin_project, get_vehicle_info_by_matricula, get_town_by_cp
+from Merlin.catastro_client import consultar_catastro_por_direccion
 import requests
 
 
@@ -291,6 +293,204 @@ def main(request):
 
 
 
+
+        # MERLIN / RETARIFICACION
+        if option == 'merlin_consulta_vehiculo':
+            # Input: {"option": "merlin_consulta_vehiculo", "matricula": "1234ABC"}
+            matricula = request_json.get('matricula', '').strip().upper()
+            if not matricula:
+                return {"error": "Missing mandatory parameter: matricula"}, 400
+            
+            dgt_result = get_vehicle_info_by_matricula(matricula)
+            if dgt_result.get("success"):
+                v = dgt_result.get("vehiculo", {})
+                def clean(val):
+                    if val is None: return "No especificado"
+                    s = str(val).strip()
+                    return s if s else "No especificado"
+
+                return {
+                    "success": True,
+                    "datos_vehiculo": {
+                        "Marca": clean(v.get("marca")),
+                        "Modelo": clean(v.get("modelo")),
+                        "Versión": clean(v.get("version")),
+                        "Combustible": clean(v.get("combustible_descripcion")),
+                        "Fecha de Matriculación": clean(v.get("fecha_matriculacion")),
+                        "Kilómetros Anuales": clean(v.get("km_anuales")),
+                        "Kilómetros Totales": clean(v.get("km_totales")),
+                        "Garaje": clean(v.get("garaje")),
+                    },
+                    "raw_data": v # Return raw data too for frontend usage if needed
+                }
+            else:
+                return dgt_result, 404 if "No se encontraron" in str(dgt_result) else 500
+
+        if option == 'merlin_get_town_by_cp':
+            # Input: {"option": "merlin_get_town_by_cp", "cp": "28001"}
+            cp = request_json.get('cp', '').strip()
+            if not cp:
+                return {"error": "Missing mandatory parameter: cp"}, 400
+            return get_town_by_cp(cp)
+
+        if option == 'merlin_consultar_catastro':
+            # Input: {"option": "merlin_consultar_catastro", "provincia": "...", "municipio": "...", ...}
+            # Mandatory: provincia, municipio, tipo_via, nombre_via, numero
+            provincia = request_json.get('provincia')
+            municipio = request_json.get('municipio')
+            tipo_via = request_json.get('tipo_via') or "CL"
+            nombre_via = request_json.get('nombre_via')
+            numero = str(request_json.get('numero', ''))
+            
+            if not all([provincia, municipio, nombre_via, numero]):
+                return {"error": "Missing mandatory parameters for Catastro (provincia, municipio, nombre_via, numero)"}, 400
+
+            # Optional params
+            bloque = request_json.get('bloque', '')
+            escalera = request_json.get('escalera', '')
+            planta = request_json.get('planta', '') or request_json.get('piso', '')
+            puerta = request_json.get('puerta', '')
+            
+            result = consultar_catastro_por_direccion(
+                provincia=provincia,
+                municipio=municipio,
+                tipo_via=tipo_via,
+                nombre_via=nombre_via,
+                numero=numero,
+                bloque=bloque,
+                escalera=escalera,
+                planta=planta,
+                puerta=puerta,
+            )
+            return result
+
+        if option == 'merlin_create_project':
+            # Input: {"option": "merlin_create_project", ... full payload ...}
+            payload = request_json.copy()
+            # Remove main API wrapper params if present
+            payload.pop('company_id', None)
+            payload.pop('option', None)
+            
+            ramo = str(payload.get("ramo", "AUTO")).upper()
+            dni = payload.get("dni")
+            cp = payload.get("codigo_postal")
+
+            # 1. Enrichment for AUTO only (Vehicle info)
+            if ramo == "AUTO":
+                matricula = payload.get("matricula")
+                if matricula:
+                    dgt_result = get_vehicle_info_by_matricula(matricula)
+                    if dgt_result.get("success"):
+                        v = dgt_result.get("vehiculo", {})
+                        payload.update({
+                            "marca": v.get("marca"),
+                            "modelo": v.get("modelo"),
+                            "version": v.get("version"),
+                            "combustible": v.get("combustible"),
+                            "fecha_matriculacion": v.get("fecha_matriculacion"),
+                            "km_anuales": v.get("km_anuales"),
+                            "km_totales": v.get("km_totales"),
+                            "tipo_de_garaje": v.get("garaje") or payload.get("tipo_de_garaje", "COLECTIVO"),
+                            "id_auto_base7": v.get("id_auto_base7"),
+                            "id_tipo_base7": v.get("id_tipo_base7"),
+                            "id_categoria_base7": v.get("id_categoria_base7"),
+                            "id_clase_base7": v.get("id_clase_base7"),
+                            "potencia": v.get("potencia_cv"),
+                            "cilindrada": v.get("cilindrada"),
+                            "precio_vp": v.get("precio_vp"),
+                        })
+                    
+                    # ERP Enrichment for current policy info
+                    if dni and matricula and company_id:
+                         # We use the existing 'client' instance from main logic
+                        try:
+                            # Verify if method exists on this client type
+                            # Assuming client is EBrokerClient
+                            if hasattr(client, 'get_all_policys_by_client_risk'):
+                                erp_result = client.get_all_policys_by_client_risk(dni, matricula, company_id)
+                                if erp_result:
+                                    # Take first match
+                                    policy = erp_result[0]
+                                    payload.update({
+                                        "aseguradora_actual": policy.get("company_name") or policy.get("company_id"),
+                                        "num_poliza": policy.get("number"),
+                                    })
+                        except Exception as e:
+                            print(f"ERP enrichment failed: {e}") # Non-blocking
+
+            # 2. Enrichment for both (Town/CP)
+            if cp:
+                town_result = get_town_by_cp(cp)
+                if town_result.get("success"):
+                    payload.update({
+                        "poblacion": town_result.get("poblacion"),
+                        "id_provincia": town_result.get("id_provincia"),
+                        "descripcion_provincia": town_result.get("descripcion_provincia"),
+                    })
+
+            # 3. Catastro enrichment for HOGAR
+            if ramo == "HOGAR":
+                nombre_via = payload.get("nombre_via", "")
+                numero_calle = str(payload.get("numero_calle", ""))
+                tipo_via = payload.get("id_tipo_via", "CL")
+                provincia_desc = payload.get("descripcion_provincia", "")
+                municipio_desc = payload.get("poblacion", "")
+                piso = payload.get("piso", "")
+                puerta = payload.get("puerta", "")
+
+                if nombre_via and numero_calle and provincia_desc and municipio_desc:
+                    catastro_result = consultar_catastro_por_direccion(
+                        provincia=provincia_desc,
+                        municipio=municipio_desc,
+                        tipo_via=tipo_via,
+                        nombre_via=nombre_via,
+                        numero=numero_calle,
+                        bloque=payload.get("bloque", ""),
+                        escalera=payload.get("escalera", ""),
+                        planta=piso,
+                        puerta=puerta,
+                    )
+
+                    if catastro_result.get("success"):
+                        cat_superficie = catastro_result.get("superficie")
+                        cat_anio = catastro_result.get("anio_construccion")
+                        cat_ref = catastro_result.get("referencia_catastral")
+
+                        if cat_superficie and "superficie_vivienda" not in payload:
+                            payload["superficie_vivienda"] = int(cat_superficie)
+                        if cat_anio and "anio_construccion" not in payload:
+                            payload["anio_construccion"] = int(cat_anio)
+                        if cat_ref:
+                            payload["referencia_catastral"] = cat_ref
+
+                # Fallback values / Defaults
+                if "superficie_vivienda" not in payload: payload["superficie_vivienda"] = 90
+                if "anio_construccion" not in payload: payload["anio_construccion"] = 2000
+                
+                defaults = {
+                    "tipo_vivienda": "PISO_EN_ALTO",
+                    "situacion_vivienda": "NUCLEO_URBANO",
+                    "regimen_ocupacion": "PROPIEDAD",
+                    "uso_vivienda": "VIVIENDA_HABITUAL",
+                    "utilizacion_vivienda": "VIVIENDA_EXCLUSIVAMENTE",
+                    "calidad_construccion": "NORMAL",
+                    "materiales_construccion": "SOLIDA_PIEDRAS_LADRILLOS_ETC",
+                    "tipo_tuberias": "POLIPROPILENO",
+                    "tipo_puerta": "DE_MADERA_PVC_METALICA_ETC",
+                    "alarma": "SIN_ALARMA",
+                    "tiene_piscina": False,
+                    "alquiler_vacacional": False,
+                    "vivienda_rehabilitada": False,
+                    "numero_personas_vivienda": "3",
+                    "numero_habitaciones": "3",
+                }
+                for k, v in defaults.items():
+                    if k not in payload: payload[k] = v
+
+            # 5. Create project in Merlin
+            result = create_merlin_project(payload)
+            return result
+    
     except Exception as e:
         return {'error': f"Error executing operation {option}: {str(e)}"}, 500
 

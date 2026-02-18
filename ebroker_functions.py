@@ -154,6 +154,23 @@ class EBrokerClient:
                 })
         return polizas_ramo
 
+    def get_all_policys_by_client_risk(self, nif: str, risk: str, company_id: str=None) -> List[Dict]:
+        polizas = self.get_customer_policies(nif)
+        polizas_risk = []
+        for p in polizas:
+            risk_poliza = p.get('risk', '')
+            if risk.lower() in risk_poliza.lower():
+                company_name = p.get('company', {}).get('name', '')
+                company_id = p.get('company', {}).get('id', '')
+                polizas_risk.append({
+                    'number': p.get('number', ''),
+                    'company_id': company_id,
+                    'company_name': company_name,
+                    'risk': risk_poliza,
+                    'phones': get_phones(company_name)
+                })
+        return polizas_risk
+
 
     def get_customer_claims_by_category(self, nif: str, ramo: str) -> List[Dict]:
         customers = self.get_customer_by_nif(nif)
