@@ -208,3 +208,76 @@ class AddDocumentCustomerResponse(TypedDict): # option: 'add_document_customer' 
     id: int
     filename: str
     description: str
+
+# --- MERLIN REQUESTS ---
+
+class MerlinConsultaVehiculoRequest(BaseRequest): # option: 'merlin_consulta_vehiculo'
+    matricula: str   # Mandatory
+
+class MerlinGetTownByCpRequest(BaseRequest): # option: 'merlin_get_town_by_cp'
+    cp: str          # Mandatory
+
+class MerlinConsultarCatastroRequest(BaseRequest): # option: 'merlin_consultar_catastro'
+    provincia: str     # Mandatory
+    municipio: str     # Mandatory
+    tipo_via: Optional[str]      # Optional (default 'CL') but good to list
+    nombre_via: str    # Mandatory
+    numero: str        # Mandatory
+    bloque: Optional[str]
+    escalera: Optional[str]
+    planta: Optional[str]
+    piso: Optional[str] # Alias for planta
+    puerta: Optional[str]
+
+class MerlinCreateProjectRequest(BaseRequest): # option: 'merlin_create_project'
+    # Base fields
+    ramo: Optional[str] # AUTO or HOGAR
+    dni: str            # Mandatory
+    codigo_postal: str  # Mandatory for HOGAR
+    fecha_efecto: str   # Mandatory
+
+    # AUTO fields
+    matricula: Optional[str]
+    tipo_de_garaje: Optional[str]
+    
+    # HOGAR fields
+    nombre_via: Optional[str]
+    numero_calle: Optional[str]
+    piso: Optional[str]
+    puerta: Optional[str]
+    numero_personas_vivienda: Optional[str]
+
+    # ... and many other optional fields for HOGAR like 'alarma', 'tiene_piscina', etc.
+
+# --- MERLIN RESPONSES ---
+
+class MerlinConsultaVehiculoResponse(TypedDict):
+    success: bool
+    datos_vehiculo: Dict
+    raw_data: Optional[Dict]
+
+class MerlinGetTownByCpResponse(TypedDict):
+    success: bool
+    poblacion: str
+    id_provincia: str
+    descripcion_provincia: str
+
+class MerlinConsultarCatastroResponse(TypedDict):
+    success: bool
+    anio_construccion: Optional[int]
+    superficie: Optional[int]
+    referencia_catastral: Optional[str]
+    uso: Optional[str]
+    codigo_postal: Optional[str]
+    error: Optional[str]
+
+class MerlinCreateProjectResponse(TypedDict):
+    success: bool
+    proyecto_id: Optional[str]
+    id_pasarela: Optional[str]
+    tarificacion_iniciada: Optional[bool]
+    subramo: Optional[str]
+    mensaje: Optional[str]
+    num_aseguradoras: Optional[int]
+    proyecto: Optional[Dict]
+    error: Optional[str]
