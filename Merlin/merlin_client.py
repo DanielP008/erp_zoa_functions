@@ -19,7 +19,7 @@ import logging
 import requests
 from typing import Dict, Any, Optional, List
 
-from infra.timing import Timer, get_current_agent
+
 
 logger = logging.getLogger(__name__)
 
@@ -281,40 +281,40 @@ class MerlinClient:
 
     def _request(self, method: str, path: str, timer_label: str, **kwargs) -> Any:
         url = f"{self.base_url}{path}"
-        parent = get_current_agent()
-        with Timer("merlin", timer_label, parent=parent):
-            try:
-                response = self._session.request(method, url, timeout=self.timeout, **kwargs)
-                response.raise_for_status()
-                if not response.content:
-                    return {}
-                return response.json()
-            except requests.exceptions.Timeout:
-                raise MerlinClientError(f"Timeout calling {timer_label}")
-            except requests.exceptions.ConnectionError as exc:
-                raise MerlinClientError(f"Connection error ({timer_label}): {exc}")
-            except requests.exceptions.HTTPError as exc:
-                body = exc.response.text[:300] if exc.response is not None else ""
-                raise MerlinClientError(
-                    f"HTTP {exc.response.status_code if exc.response else '?'} on {timer_label}: {body}"
-                )
+        # parent = get_current_agent()
+        # with Timer("merlin", timer_label, parent=parent):
+        try:
+            response = self._session.request(method, url, timeout=self.timeout, **kwargs)
+            response.raise_for_status()
+            if not response.content:
+                return {}
+            return response.json()
+        except requests.exceptions.Timeout:
+            raise MerlinClientError(f"Timeout calling {timer_label}")
+        except requests.exceptions.ConnectionError as exc:
+            raise MerlinClientError(f"Connection error ({timer_label}): {exc}")
+        except requests.exceptions.HTTPError as exc:
+            body = exc.response.text[:300] if exc.response is not None else ""
+            raise MerlinClientError(
+                f"HTTP {exc.response.status_code if exc.response else '?'} on {timer_label}: {body}"
+            )
 
     # -- Public API -----------------------------------------------------------
 
     def login(self) -> str:
         self._ensure_config()
         logger.info("[MERLIN] Logging in...")
-        parent = get_current_agent()
-        with Timer("merlin", "merlin_login", parent=parent):
-            try:
-                resp = self._session.post(
-                    f"{self.base_url}/login",
-                    json={"username": self.username, "password": self.password},
-                    timeout=self.timeout,
-                )
-                resp.raise_for_status()
-            except requests.exceptions.RequestException as exc:
-                raise MerlinClientError(f"Login failed: {exc}")
+        # parent = get_current_agent()
+        # with Timer("merlin", "merlin_login", parent=parent):
+        try:
+            resp = self._session.post(
+                f"{self.base_url}/login",
+                json={"username": self.username, "password": self.password},
+                timeout=self.timeout,
+            )
+            resp.raise_for_status()
+        except requests.exceptions.RequestException as exc:
+            raise MerlinClientError(f"Login failed: {exc}")
 
         self._token = resp.headers.get("Authorization")
         if not self._token:
@@ -603,21 +603,21 @@ class MerlinClient:
                 os.environ.get("ENFOCAR_PASSWORD", "ebrokerPM"),
             )
 
-            parent = get_current_agent()
-            with Timer("merlin", "merlin_dgt_lookup", parent=parent):
-                try:
-                    resp = requests.get(
-                        dgt_url,
-                        params={"categoria": "1"},
-                        auth=enfocar_auth,
-                        headers={"Accept": "application/json"},
-                        timeout=self.timeout,
-                    )
-                    logger.info(f"[MERLIN] DGT response status: {resp.status_code}")
-                    resp.raise_for_status()
-                    results = resp.json()
-                except requests.exceptions.RequestException as exc:
-                    raise MerlinClientError(f"DGT lookup failed: {exc}")
+            # parent = get_current_agent()
+            # with Timer("merlin", "merlin_dgt_lookup", parent=parent):
+            try:
+                resp = requests.get(
+                    dgt_url,
+                    params={"categoria": "1"},
+                    auth=enfocar_auth,
+                    headers={"Accept": "application/json"},
+                    timeout=self.timeout,
+                )
+                logger.info(f"[MERLIN] DGT response status: {resp.status_code}")
+                resp.raise_for_status()
+                results = resp.json()
+            except requests.exceptions.RequestException as exc:
+                raise MerlinClientError(f"DGT lookup failed: {exc}")
 
             if not results or not isinstance(results, list) or len(results) == 0:
                 return {"success": False, "error": f"No se encontraron datos para la matricula {matricula}"}
@@ -685,10 +685,10 @@ class MerlinClient:
             url = f"https://api.zippopotam.us/es/{cp}"
             logger.info(f"[MERLIN] Postal code lookup: {url}")
 
-            parent = get_current_agent()
-            with Timer("merlin", "merlin_towns_lookup", parent=parent):
-                resp = requests.get(url, timeout=10)
-                logger.info(f"[MERLIN] Postal code response status: {resp.status_code}")
+            # parent = get_current_agent()
+            # with Timer("merlin", "merlin_towns_lookup", parent=parent):
+            resp = requests.get(url, timeout=10)
+            logger.info(f"[MERLIN] Postal code response status: {resp.status_code}")
 
             if resp.status_code == 404:
                 return {"success": False, "error": f"No se encontró población para el CP {cp}"}
