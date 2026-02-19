@@ -502,6 +502,7 @@ class MerlinClient:
             if ramo == "AUTO":
                 datos_basicos["vehiculo"] = _build_vehiculo(datos)
                 datos_basicos["conductor"] = _build_persona(datos, "CONDUCTOR")
+                datos_basicos["propietario"] = _build_persona(datos, "PROPIETARIO")
                 datos_basicos["historial_asegurador"] = _build_historial(datos)
                 datos_basicos["@class"] = DATOS_BASICOS_AUTO_CLASS
             else:
@@ -559,16 +560,6 @@ class MerlinClient:
                     logger.info(f"[MERLIN] Final project ofertas count: {len(ofertas) if isinstance(ofertas, list) else 'N/A'}")
                     if estado == "TARIFICADO":
                         tarificacion_ok = True
-                    # Dump project JSON to test/json_renovaciones/
-                    try:
-                        dump_dir = os.path.join(os.path.dirname(__file__), "..", "test", "json_renovaciones")
-                        os.makedirs(dump_dir, exist_ok=True)
-                        dump_path = os.path.join(dump_dir, f"proyecto_tarificado_{mongo_id}.json")
-                        with open(dump_path, "w", encoding="utf-8") as f:
-                            json.dump(proyecto_final, f, ensure_ascii=False, indent=2, default=str)
-                        logger.info(f"[MERLIN] Project JSON dumped to {dump_path}")
-                    except Exception as dump_exc:
-                        logger.warning(f"[MERLIN] Failed to dump project JSON: {dump_exc}")
 
                 except Exception as exc:
                     logger.warning(f"[MERLIN] Failed to fetch final project: {exc}")
