@@ -4,6 +4,7 @@ import database_functions
 import excel_functions
 import json
 import firebase_admin
+import os
 from firebase_admin import db,credentials,storage,firestore
 from datetime import datetime, timedelta
 from Merlin.merlin_client import create_merlin_project, get_vehicle_info_by_matricula, get_town_by_cp
@@ -486,6 +487,63 @@ def main(request):
                 }
                 for k, v in defaults.items():
                     if k not in payload: payload[k] = v
+
+                # Calcular capitales continente y contenido
+                if "capital_continente" not in payload or "capital_contenido" not in payload:
+                    superficie = payload.get("superficie_vivienda", 90)
+                    tipo_vivienda = payload.get("tipo_vivienda", "PISO_EN_ALTO")
+                    
+                    factores = {
+                        "PISO_EN_ALTO": 1.0,
+                        "ATICO": 1.0,
+                        "PISO_EN_BAJO": 1.1,
+                        "CHALET_O_VIVIENDA_ADOSADA": 1.2,
+                        "CHALET_O_VIVIENDA_UNIFAMILIAR": 1.4
+                    }
+                    factores_contenido = {
+                        "PISO_EN_ALTO": 250,
+                        "ATICO": 350,
+                        "PISO_EN_BAJO": 250,
+                        "CHALET_O_VIVIENDA_ADOSADA": 350,
+                        "CHALET_O_VIVIENDA_UNIFAMILIAR": 450
+                    }
+                    
+                    factor_tipologia = factores.get(tipo_vivienda, 1.0)
+                    precio_m2_contenido = factores_contenido.get(tipo_vivienda, 250)
+                    
+                    capital_continente = 0
+                    capital_contenido = 25000
+                    precio_m2_base = 1500
+                    
+                    if str(superficie).isdigit():
+                        try:
+                            json_path = os.path.join(os.path.dirname(__file__), "Merlin", "precios_m2.json")
+                            with open(json_path, "r", encoding="utf-8") as f:
+                                precios = json.load(f)
+                            
+                            mun_upper = str(payload.get("poblacion", "")).strip().upper()
+                            prov_upper = str(payload.get("descripcion_provincia", "")).strip().upper()
+                            
+                            if mun_upper in precios:
+                                precio_m2_base = precios[mun_upper]
+                            elif prov_upper in precios:
+                                precio_m2_base = precios[prov_upper]
+                            else:
+                                precio_m2_base = precios.get("DEFAULT", 1500)
+                                
+                            precio_final_m2 = float(precio_m2_base) * factor_tipologia
+                            capital_continente = int(superficie) * int(precio_final_m2)
+                            capital_contenido = int(superficie) * precio_m2_contenido
+                        except Exception as e:
+                            capital_continente = int(superficie) * 1500
+                            capital_contenido = 25000
+                    else:
+                        capital_continente = 90 * 1500
+                        capital_contenido = 25000
+                        
+                    if "capital_continente" not in payload: payload["capital_continente"] = capital_continente
+                    if "capital_contenido" not in payload: payload["capital_contenido"] = capital_contenido
+
 
             # 5. Create project in Merlin
             result = create_merlin_project(payload)
