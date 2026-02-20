@@ -17,7 +17,11 @@ import os
 import time
 import logging
 import requests
+from dotenv import load_dotenv
 from typing import Dict, Any, Optional, List
+
+# Load environment variables from .env file
+load_dotenv()
 
 
 
