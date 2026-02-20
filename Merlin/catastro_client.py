@@ -325,7 +325,12 @@ def _try_catastro_address(
 
             try:
                 resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT)
-                resp.raise_for_status()
+                # Don't raise on 400 - Catastro sometimes returns 400 with valid XML error info
+                if resp.status_code >= 500:
+                    resp.raise_for_status()
+                if resp.status_code == 400:
+                    logger.warning(f"[CATASTRO] Got 400 for variant '{variant}' in '{muni}', trying next...")
+                    continue
             except requests.exceptions.RequestException as exc:
                 logger.error(f"[CATASTRO] Request failed: {exc}")
                 return {"success": False, "error": f"Error consultando el Catastro: {exc}"}

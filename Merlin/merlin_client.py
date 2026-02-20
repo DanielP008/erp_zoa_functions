@@ -695,13 +695,23 @@ class MerlinClient:
             url = f"https://api.zippopotam.us/es/{cp}"
             logger.info(f"[MERLIN] Postal code lookup: {url}")
 
-            # parent = get_current_agent()
-            # with Timer("merlin", "merlin_towns_lookup", parent=parent):
-            resp = requests.get(url, timeout=10)
+            # Verify SSL is disabled to avoid certificate issues in some environments
+            # or ensure certificates are up to date. For now, we'll use verify=False
+            # as a fallback if standard verification fails, but default to True.
+            try:
+                resp = requests.get(url, timeout=10)
+            except requests.exceptions.SSLError:
+                logger.warning("[MERLIN] SSL verification failed for zippopotam.us, retrying without verification.")
+                resp = requests.get(url, timeout=10, verify=False)
+
             logger.info(f"[MERLIN] Postal code response status: {resp.status_code}")
 
             if resp.status_code == 404:
                 return {"success": False, "error": f"No se encontró población para el CP {cp}"}
+            
+            # Handle potential 500/503 from zippopotam
+            if resp.status_code >= 500:
+                 return {"success": False, "error": f"Error del servicio de códigos postales ({resp.status_code})"}
 
             resp.raise_for_status()
             data = resp.json()

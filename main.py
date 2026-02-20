@@ -363,6 +363,69 @@ def main(request):
                 planta=planta,
                 puerta=puerta,
             )
+            
+            # Calculate capitals if successful, to help the agent suggest values
+            if result.get("success"):
+                try:
+                    tipo_vivienda = request_json.get('tipo_vivienda', 'PISO_EN_ALTO')
+                    superficie = result.get('superficie', 90)
+                    
+                    factores = {
+                        "PISO_EN_ALTO": 1.0,
+                        "ATICO": 1.0,
+                        "PISO_EN_BAJO": 1.1,
+                        "CHALET_O_VIVIENDA_ADOSADA": 1.2,
+                        "CHALET_O_VIVIENDA_UNIFAMILIAR": 1.4
+                    }
+                    factores_contenido = {
+                        "PISO_EN_ALTO": 250,
+                        "ATICO": 350,
+                        "PISO_EN_BAJO": 250,
+                        "CHALET_O_VIVIENDA_ADOSADA": 350,
+                        "CHALET_O_VIVIENDA_UNIFAMILIAR": 450
+                    }
+                    
+                    factor_tipologia = factores.get(tipo_vivienda, 1.0)
+                    precio_m2_contenido = factores_contenido.get(tipo_vivienda, 250)
+                    
+                    precio_m2_base = 1500
+                    capital_continente = 0
+                    capital_contenido = 25000
+                    
+                    if str(superficie).isdigit():
+                        json_path = os.path.join(os.path.dirname(__file__), "Merlin", "precios_m2.json")
+                        if os.path.exists(json_path):
+                            with open(json_path, "r", encoding="utf-8") as f:
+                                precios = json.load(f)
+                            
+                            mun_upper = str(municipio).strip().upper()
+                            prov_upper = str(provincia).strip().upper()
+                            
+                            if mun_upper in precios:
+                                precio_m2_base = precios[mun_upper]
+                            elif prov_upper in precios:
+                                precio_m2_base = precios[prov_upper]
+                            else:
+                                precio_m2_base = precios.get("DEFAULT", 1500)
+                        
+                        precio_final_m2 = float(precio_m2_base) * factor_tipologia
+                        capital_continente = int(superficie) * int(precio_final_m2)
+                        capital_contenido = int(superficie) * precio_m2_contenido
+                    else:
+                        capital_continente = 90 * 1500
+                        capital_contenido = 25000
+                        
+                    result['capital_continente'] = capital_continente
+                    result['capital_contenido'] = capital_contenido
+                    result['precio_m2_base'] = precio_m2_base
+                    result['factor_tipologia'] = factor_tipologia
+                    result['precio_m2_contenido'] = precio_m2_contenido
+                    
+                except Exception as e:
+                    print(f"Error calculating capitals in merlin_consultar_catastro: {e}")
+                    # Don't fail the whole request, just return without capitals
+                    pass
+
             return result
 
         if option == 'merlin_create_project':
