@@ -330,19 +330,29 @@ class MerlinClient:
     def obtener_aseguradoras(self, subramo: str) -> Dict[str, Any]:
         logger.info(f"[MERLIN] Fetching insurers for '{subramo}'...")
         items = self._request("GET", "/aseguradoras", "merlin_aseguradoras", params={"subramo": subramo})
+        logger.info(f"[MERLIN] API returned {len(items)} insurer entries for subramo '{subramo}'")
         aseguradoras: Dict[str, Any] = {}
         for item in items:
             dgs = item.get("id", "")
             nombre = item.get("nombre", "")
             plantillas = item.get("plantillas", [])
-            activa = next((p for p in plantillas if p.get("activa")), plantillas[0] if plantillas else None)
-            if activa:
-                aseguradoras[dgs] = {
+            activas = [p for p in plantillas if p.get("activa")]
+            logger.info(
+                f"[MERLIN]   Insurer {dgs} ({nombre}): "
+                f"{len(plantillas)} plantillas total, {len(activas)} activas"
+            )
+            for p in activas:
+                pid = p.get("id")
+                pname = p.get("nombre", "")
+                key = f"{dgs}_{pid}"
+                aseguradoras[key] = {
                     "nombre": nombre,
-                    "plantilla_id": activa.get("id"),
-                    "plantilla_nombre": activa.get("nombre"),
+                    "dgs": dgs,
+                    "plantilla_id": pid,
+                    "plantilla_nombre": pname,
                 }
-        logger.info(f"[MERLIN] Found {len(aseguradoras)} insurers.")
+                logger.info(f"[MERLIN]     -> Plantilla activa: {pid} ({pname})")
+        logger.info(f"[MERLIN] Found {len(aseguradoras)} active insurer templates.")
         return aseguradoras
 
     def obtener_proyecto_nuevo(self, plantillas_ids: List[str]) -> Dict[str, Any]:
@@ -352,7 +362,9 @@ class MerlinClient:
             "GET", "/proyecto/nuevo", "merlin_proyecto_nuevo",
             params={"idsPlantillasSeleccionadas": ids_str},
         )
-        logger.info(f"[MERLIN] Got project template with {len(proyecto.get('aseguradoras', []))} insurers.")
+         # Often the JSON returns them in 'plantillas' or 'aseguradoras'
+        count = len(proyecto.get('aseguradoras', proyecto.get('plantillas', [])))
+        logger.info(f"[MERLIN] Got project template with {count} insurers.")
         return proyecto
 
     def obtener_proyecto(self, id_proyecto: str) -> Dict[str, Any]:
@@ -460,6 +472,9 @@ class MerlinClient:
         Returns True if tarification completed, False on timeout/error.
         """
         elapsed = 0
+        consecutive_errors = 0
+        max_errors = 3
+
         while elapsed < max_wait:
             time.sleep(interval)
             elapsed += interval
@@ -473,12 +488,16 @@ class MerlinClient:
                     f"[MERLIN] Tarification poll ({elapsed}s): "
                     f"finished={finished}"
                 )
+                consecutive_errors = 0 # reset on success
                 if finished:
                     logger.info("[MERLIN] Tarification completed successfully.")
                     return True
             except Exception as exc:
-                logger.warning(f"[MERLIN] Tarification poll error ({elapsed}s): {exc}")
-                break
+                consecutive_errors += 1
+                logger.warning(f"[MERLIN] Tarification poll error ({elapsed}s, error {consecutive_errors}/{max_errors}): {exc}")
+                if consecutive_errors >= max_errors:
+                    logger.error("[MERLIN] Too many consecutive polling errors. Aborting poll.")
+                    break
         if elapsed >= max_wait:
             logger.warning(f"[MERLIN] Tarification timed out after {max_wait}s.")
         return False
