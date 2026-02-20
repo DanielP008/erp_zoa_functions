@@ -17,11 +17,7 @@ import os
 import time
 import logging
 import requests
-from dotenv import load_dotenv
 from typing import Dict, Any, Optional, List
-
-# Load environment variables from .env file
-load_dotenv()
 
 
 
@@ -379,9 +375,18 @@ class MerlinClient:
         )
 
     def guardar_proyecto(self, proyecto: Dict[str, Any]) -> Dict[str, Any]:
-        logger.info("[MERLIN] Saving project...")
+        import json as _json
+        try:
+            payload_str = _json.dumps(proyecto, default=str, ensure_ascii=False)
+            print(f"[MERLIN] guardar_proyecto FULL PAYLOAD ({len(payload_str)} chars):")
+            for i in range(0, min(len(payload_str), 6000), 500):
+                print(f"  CHUNK[{i}]: {payload_str[i:i+500]}")
+            datos_b = proyecto.get("datosBasicos") or proyecto.get("datos_basicos", {})
+            print(f"[MERLIN] datosBasicos keys: {list(datos_b.keys()) if isinstance(datos_b, dict) else 'NOT_DICT'}")
+        except Exception as e:
+            print(f"[MERLIN] Could not serialize proyecto for logging: {e}")
         result = self._request("PUT", "/proyecto", "merlin_guardar_proyecto", json=proyecto)
-        logger.info(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
+        print(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
         return result
 
     def guardar_datos_adicionales_hogar(self, id_pasarela: str, data: dict) -> Dict[str, Any]:
@@ -531,7 +536,7 @@ class MerlinClient:
             else:
                 datos_basicos["riesgo_hogar"] = _build_riesgo_hogar(datos)
                 datos_basicos["propietario"] = _build_persona(datos, "PROPIETARIO")
-                datos_basicos["class_name"] = DATOS_BASICOS_HOGAR_CLASS
+                datos_basicos["@class"] = DATOS_BASICOS_HOGAR_CLASS
 
             datos_basicos["tomador"] = _build_persona(datos, "TOMADOR")
 
