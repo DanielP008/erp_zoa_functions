@@ -258,7 +258,7 @@ def consultar_catastro_por_direccion(
     # Fallback: if unit (planta/puerta) was specified and error is "no property found",
     # retry without planta/puerta to find the building, then query by reference.
     error_upper = result.get("error", "").upper()
-    if has_unit and ("INMUEBLE" in error_upper or "PARAMETROS" in error_upper):
+    if has_unit and ("INMUEBLE" in error_upper or "PARAMETROS" in error_upper or "SIN RESULTADOS" in error_upper):
         logger.info("[CATASTRO] Unit not found, retrying without planta/puerta...")
         result_building = _try_catastro_address(
             url, normalized_provincia, municipio, tipo_via, nombre_via, numero,
