@@ -12,7 +12,7 @@ from Merlin.catastro_client import consultar_catastro_por_direccion
 import requests
 
 
-firebase_admin.initialize_app()
+# firebase_admin.initialize_app()
 
 
 @functions_framework.http
@@ -74,7 +74,11 @@ def main(request):
     # Normalize erp_type
     raw_erp_type = str(erp_config.get('erp_type', '')).strip().lower()
 
-    if raw_erp_type == 'ebroker':
+    client = None
+    # Skip ERP login for Merlin operations that don't need it
+    if option and option.startswith('merlin_'):
+        pass
+    elif raw_erp_type == 'ebroker':
         try:
             client = erp_auth.get_erp_client(company_config)
             if not client or isinstance(client, str):
@@ -616,7 +620,8 @@ def main(request):
         return {'error': f"Error executing operation {option}: {str(e)}"}, 500
 
     finally:
-        client.close()
+        if client and hasattr(client, 'close'):
+            client.close()
     return {"error": "Invalid option"}, 400
 
 def get_nif_by_phone(company_id, phone):
