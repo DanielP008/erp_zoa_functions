@@ -759,18 +759,20 @@ class MerlinClient:
 
 def create_merlin_project(datos: dict, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Create a complete Merlin insurance project (Auto or Hogar)."""
-    tarificador_config = datos.get("tarificador", {})
+    tarificador_config = tarificador_config.get("tarificador", {})
     client = MerlinClient(tarificador_config)
     return client.crear_proyecto_completo(datos)
 
 
 def get_vehicle_info_by_matricula(matricula: str, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Get vehicle info from DGT via Merlin e-nfocar-services."""
+    tarificador_config = tarificador_config.get("tarificador", {})
     client = MerlinClient(config=tarificador_config)
     return client.consultar_dgt_por_matricula(matricula)
 
 
 def get_town_by_cp(cp: str, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Get town/poblacion info by postal code from Merlin."""
+    tarificador_config = tarificador_config.get("tarificador", {})
     client = MerlinClient(config=tarificador_config)
     return client.obtener_poblacion_por_cp(cp)
