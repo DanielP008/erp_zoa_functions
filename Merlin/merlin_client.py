@@ -260,9 +260,9 @@ def _build_historial(data: dict) -> dict:
 class MerlinClient:
     """Client for the Merlin Multitarificador API."""
 
-    def __init__(self,company_config: dict):
-        self.company_config = company_config.get("tarificador", {})
-        self.base_url = os.environ.get(
+    def __init__(self, config: Optional[dict] = None):
+        config = config or {}
+        self.base_url = config.get("merlin_url") or os.environ.get(
             "MERLIN_BASE_URL",
             "https://drseguros.merlin.insure/multi/multitarificador4-servicios",
         ).rstrip("/")
@@ -270,8 +270,8 @@ class MerlinClient:
             "/multi/multitarificador4-servicios",
             "/e-nfocar-services",
         )
-        self.username = company_config.get("user", "") 
-        self.password = company_config.get("pass", "")
+        self.username = config.get("user") or os.environ.get("MERLIN_USERNAME", "")
+        self.password = config.get("pass") or os.environ.get("MERLIN_PASSWORD", "")
         self.timeout = int(os.environ.get("MERLIN_TIMEOUT", "30"))
         self._session = requests.Session()
         self._token: Optional[str] = None
@@ -757,19 +757,20 @@ class MerlinClient:
 # Wrapper functions for tools
 # =============================================================================
 
-def create_merlin_project(datos: dict, company_config: dict) -> Dict[str, Any]:
+def create_merlin_project(datos: dict) -> Dict[str, Any]:
     """Create a complete Merlin insurance project (Auto or Hogar)."""
-    client = MerlinClient(company_config)
+    tarificador_config = datos.get("tarificador_config", {})
+    client = MerlinClient(config=tarificador_config)
     return client.crear_proyecto_completo(datos)
 
 
-def get_vehicle_info_by_matricula(matricula: str) -> Dict[str, Any]:
+def get_vehicle_info_by_matricula(matricula: str, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Get vehicle info from DGT via Merlin e-nfocar-services."""
-    client = MerlinClient()
+    client = MerlinClient(config=tarificador_config)
     return client.consultar_dgt_por_matricula(matricula)
 
 
-def get_town_by_cp(cp: str) -> Dict[str, Any]:
+def get_town_by_cp(cp: str, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Get town/poblacion info by postal code from Merlin."""
-    client = MerlinClient()
+    client = MerlinClient(config=tarificador_config)
     return client.obtener_poblacion_por_cp(cp)

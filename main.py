@@ -104,7 +104,10 @@ def main(request):
 
     #========== TOOL METHODS ==========
     try:
-
+        # Inyect tarificador config from Firebase into payload for Merlin
+        if isinstance(company_config, dict):
+            request_json['tarificador_config'] = company_config.get('tarificador', {})
+        
         # CLAIMS
         # Needs another piece of data in the input JSON 'nif_cliente'
         if option == 'get_claims':
@@ -311,7 +314,7 @@ def main(request):
             if not matricula:
                 return {"error": "Missing mandatory parameter: matricula"}, 400
             
-            dgt_result = get_vehicle_info_by_matricula(matricula)
+            dgt_result = get_vehicle_info_by_matricula(matricula, request_json.get('tarificador_config'))
             if dgt_result.get("success"):
                 v = dgt_result.get("vehiculo", {})
                 def clean(val):
@@ -341,7 +344,7 @@ def main(request):
             cp = request_json.get('cp', '').strip()
             if not cp:
                 return {"error": "Missing mandatory parameter: cp"}, 400
-            return get_town_by_cp(cp)
+            return get_town_by_cp(cp, request_json.get('tarificador_config'))
 
         if option == 'merlin_consultar_catastro':
             # Input: {"option": "merlin_consultar_catastro", "provincia": "...", "municipio": "...", ...}
@@ -452,7 +455,7 @@ def main(request):
             if ramo == "AUTO":
                 matricula = payload.get("matricula")
                 if matricula:
-                    dgt_result = get_vehicle_info_by_matricula(matricula)
+                    dgt_result = get_vehicle_info_by_matricula(matricula, request_json.get('tarificador_config'))
                     if dgt_result.get("success"):
                         v = dgt_result.get("vehiculo", {})
                         payload.update({
@@ -493,7 +496,7 @@ def main(request):
 
             # 2. Enrichment for both (Town/CP)
             if cp:
-                town_result = get_town_by_cp(cp)
+                town_result = get_town_by_cp(cp, request_json.get('tarificador_config'))
                 if town_result.get("success"):
                     payload.update({
                         "poblacion": town_result.get("poblacion"),
