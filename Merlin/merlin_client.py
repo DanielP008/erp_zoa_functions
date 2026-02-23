@@ -473,7 +473,7 @@ class MerlinClient:
         process_id: str,
         mongo_id: str,
         subramo: str,
-        max_wait: int = 60,
+        max_wait: int = 70,
         interval: int = 5,
     ) -> bool:
         """Poll tarificacion/estado until finished or timeout.
