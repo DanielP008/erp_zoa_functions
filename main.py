@@ -59,15 +59,20 @@ def main(request):
 
 
     # Load Firebase data
-    company_config = database_functions.get_company_config(company_id)
+    if option and option.startswith('merlin_'):
+        company_config = {}
+    else:
+        company_config = database_functions.get_company_config(company_id)
+
     system = company_config.get('system', "")
 
-    if isinstance(company_config, dict) and "error" in company_config:
-        return company_config, 500
+    if not (option and option.startswith('merlin_')):
+        if isinstance(company_config, dict) and "error" in company_config:
+            return company_config, 500
 
-    if not company_config:
-        return {"error": f"Configuration not found for company_id: {company_id}"}, 404
-
+        if not company_config:
+            return {"error": f"Configuration not found for company_id: {company_id}"}, 404
+    
     # Extract ERP config for local usage
     erp_config = company_config.get('erp', {})
 
