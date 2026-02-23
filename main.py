@@ -530,12 +530,14 @@ def main(request):
                         cat_anio = catastro_result.get("anio_construccion")
                         cat_ref = catastro_result.get("referencia_catastral")
 
-                        if cat_superficie and "superficie_vivienda" not in payload:
+                        if cat_superficie:
                             payload["superficie_vivienda"] = int(cat_superficie)
-                        if cat_anio and "anio_construccion" not in payload:
+                        if cat_anio:
                             payload["anio_construccion"] = int(cat_anio)
                         if cat_ref:
                             payload["referencia_catastral"] = cat_ref
+                    else:
+                        print(f"[CATASTRO] Enrichment failed: {catastro_result.get('error', 'unknown')}")
 
                 # Fallback values / Defaults
                 if "superficie_vivienda" not in payload: payload["superficie_vivienda"] = 90

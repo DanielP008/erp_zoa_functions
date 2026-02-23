@@ -8,6 +8,7 @@ Endpoint usado: Consulta_DNPLOC (HTTP GET, sin autenticación, XML response).
 """
 
 import logging
+import time
 import unicodedata
 import requests
 import xml.etree.ElementTree as ET
@@ -19,6 +20,11 @@ CATASTRO_BASE_URL = (
     "https://ovc.catastro.meh.es/ovcservweb/ovcswlocalizacionrc/ovccallejero.asmx"
 )
 CATASTRO_TIMEOUT = 15
+CATASTRO_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "application/xml, text/xml, */*",
+}
+CATASTRO_RETRY_DELAY = 0.5  # seconds between retries on 400
 
 
 def _remove_accents(s: str) -> str:
@@ -265,7 +271,7 @@ def _query_catastro_by_reference(provincia: str, municipio: str, referencia: str
     params = {"Provincia": provincia, "Municipio": municipio, "RC": referencia}
     logger.info(f"[CATASTRO] Querying by reference: {referencia}")
     try:
-        resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT)
+        resp = requests.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
         resp.raise_for_status()
     except requests.exceptions.RequestException as exc:
         return {"success": False, "error": str(exc)}
@@ -293,16 +299,31 @@ def _try_catastro_address(
             params = {**common_params, "Provincia": provincia, "Municipio": muni, "Calle": variant}
             logger.info(f"[CATASTRO] Querying: {params['Provincia']}, {params['Municipio']}, {params['Sigla']} {params['Calle']} {params['Numero']}")
 
-            try:
-                resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT)
-                if resp.status_code >= 500:
-                    resp.raise_for_status()
-                if resp.status_code == 400:
-                    logger.warning(f"[CATASTRO] Got 400 for '{variant}' in '{muni}', trying next...")
-                    continue
-            except requests.exceptions.RequestException as exc:
-                logger.error(f"[CATASTRO] Request failed: {exc}")
-                return {"success": False, "error": f"Error consultando el Catastro: {exc}"}
+            max_retries = 2
+            resp = None
+            for attempt in range(max_retries + 1):
+                try:
+                    resp = requests.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
+                    if resp.status_code >= 500:
+                        resp.raise_for_status()
+                    if resp.status_code == 400:
+                        body_preview = resp.text[:300] if resp.text else "(empty)"
+                        logger.warning(
+                            f"[CATASTRO] Got 400 for '{variant}' in '{muni}' "
+                            f"(attempt {attempt+1}/{max_retries+1}). "
+                            f"URL: {resp.request.url} | Body: {body_preview}"
+                        )
+                        if attempt < max_retries:
+                            time.sleep(CATASTRO_RETRY_DELAY * (attempt + 1))
+                            continue
+                        break
+                    break
+                except requests.exceptions.RequestException as exc:
+                    logger.error(f"[CATASTRO] Request failed: {exc}")
+                    return {"success": False, "error": f"Error consultando el Catastro: {exc}"}
+
+            if resp is None or resp.status_code == 400:
+                continue
 
             last_result = _parse_catastro_response(resp.text)
             if last_result.get("success"):
