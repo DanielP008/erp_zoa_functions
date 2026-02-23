@@ -518,6 +518,7 @@ class MerlinClient:
             self.login()
             ramo = str(datos.get("ramo", "AUTO")).upper()
             subramo = SUBRAMO_AUTO if ramo == "AUTO" else SUBRAMO_HOGAR
+            max_wait_polling = int(datos.get("max_wait_polling", 60))
 
             aseguradoras = self.obtener_aseguradoras(subramo)
             if not aseguradoras:
@@ -569,7 +570,7 @@ class MerlinClient:
                     )
                     if process_id:
                         tarificacion_ok = self._poll_tarificacion(
-                            process_id, mongo_id, subramo
+                            process_id, mongo_id, subramo, max_wait=max_wait_polling
                         )
                     else:
                         logger.warning("[MERLIN] No process ID returned from iniciar.")
