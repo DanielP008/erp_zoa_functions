@@ -621,7 +621,7 @@ def main(request):
             import json as _json
             print(f"[MAIN] Payload keys before create_merlin_project: {list(payload.keys())}")
             print(f"[MAIN] Payload (first 2000): {_json.dumps(payload, default=str, ensure_ascii=False)[:2000]}")
-            result = create_merlin_project(payload)
+            result = create_merlin_project(payload,company_config)
             return result
     
     except Exception as e:

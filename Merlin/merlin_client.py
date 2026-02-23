@@ -260,7 +260,8 @@ def _build_historial(data: dict) -> dict:
 class MerlinClient:
     """Client for the Merlin Multitarificador API."""
 
-    def __init__(self):
+    def __init__(self,company_config: dict):
+        self.company_config = company_config.get("tarificador", {})
         self.base_url = os.environ.get(
             "MERLIN_BASE_URL",
             "https://drseguros.merlin.insure/multi/multitarificador4-servicios",
@@ -269,8 +270,8 @@ class MerlinClient:
             "/multi/multitarificador4-servicios",
             "/e-nfocar-services",
         )
-        self.username = os.environ.get("MERLIN_USERNAME", "")
-        self.password = os.environ.get("MERLIN_PASSWORD", "")
+        self.username = company_config.get("user", "") 
+        self.password = company_config.get("pass", "")
         self.timeout = int(os.environ.get("MERLIN_TIMEOUT", "30"))
         self._session = requests.Session()
         self._token: Optional[str] = None
@@ -756,9 +757,9 @@ class MerlinClient:
 # Wrapper functions for tools
 # =============================================================================
 
-def create_merlin_project(datos: dict) -> Dict[str, Any]:
+def create_merlin_project(datos: dict, company_config: dict) -> Dict[str, Any]:
     """Create a complete Merlin insurance project (Auto or Hogar)."""
-    client = MerlinClient()
+    client = MerlinClient(company_config)
     return client.crear_proyecto_completo(datos)
 
 
