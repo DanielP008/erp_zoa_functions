@@ -12,7 +12,7 @@ from Merlin.catastro_client import consultar_catastro_por_direccion
 import requests
 
 
-firebase_admin.initialize_app()
+# firebase_admin.initialize_app()
 
 
 @functions_framework.http
