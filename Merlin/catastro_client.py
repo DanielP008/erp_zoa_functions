@@ -40,14 +40,12 @@ def _generate_street_name_variants(nombre_via: str) -> list:
 
     current_variants = list(variants)
     for v in current_variants:
-        if v.startswith("DE "):
-            variants.append(v[3:])
+        if v.startswith("DE LA "):
+            variants.append(v[6:])
         elif v.startswith("DEL "):
             variants.append(v[4:])
-        elif v.startswith("DE LA "):
-            variants.append(v[6:])
-        else:
-            variants.append(f"DE {v}")
+        elif v.startswith("DE "):
+            variants.append(v[3:])
 
     current_variants = list(variants)
     for v in current_variants:
