@@ -757,10 +757,10 @@ class MerlinClient:
 # Wrapper functions for tools
 # =============================================================================
 
-def create_merlin_project(datos: dict) -> Dict[str, Any]:
+def create_merlin_project(datos: dict, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Create a complete Merlin insurance project (Auto or Hogar)."""
-    tarificador_config = datos.get("tarificador_config", {})
-    client = MerlinClient(config=tarificador_config)
+    tarificador_config = datos.get("tarificador", {})
+    client = MerlinClient(tarificador_config)
     return client.crear_proyecto_completo(datos)
 
 

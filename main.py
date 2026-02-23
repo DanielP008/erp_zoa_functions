@@ -59,10 +59,8 @@ def main(request):
 
 
     # Load Firebase data
-    if option and option.startswith('merlin_'):
-        company_config = {}
-    else:
-        company_config = database_functions.get_company_config(company_id)
+   
+    company_config = database_functions.get_company_config(company_id)
 
     system = company_config.get('system', "")
 
