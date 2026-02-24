@@ -21,11 +21,14 @@ CATASTRO_BASE_URL = (
 )
 CATASTRO_TIMEOUT = 15
 CATASTRO_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "application/xml, text/xml, */*",
+    "Accept-Language": "es-ES,es;q=0.9",
+    "Connection": "keep-alive",
 }
-CATASTRO_RETRY_DELAY = 0.5  # seconds between retries on 400
+CATASTRO_RETRY_DELAY = 2.0  # Tiempo base para reintentos
 
+_session = requests.Session() # Usar una sesión global para reutilizar conexiones
 
 def _remove_accents(s: str) -> str:
     return "".join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
@@ -274,7 +277,7 @@ def _query_catastro_by_reference(provincia: str, municipio: str, referencia: str
     max_retries = 3
     for attempt in range(max_retries + 1):
         try:
-            resp = requests.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
+            resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
             resp.raise_for_status()
             return _parse_catastro_response(resp.text)
         except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as exc:
@@ -313,7 +316,7 @@ def _try_catastro_address(
             resp = None
             for attempt in range(max_retries + 1):
                 try:
-                    resp = requests.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
+                    resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
                     if resp.status_code >= 500:
                         resp.raise_for_status()
                     if resp.status_code == 400:
@@ -333,7 +336,9 @@ def _try_catastro_address(
                     if attempt < max_retries:
                         time.sleep(CATASTRO_RETRY_DELAY * (attempt + 1))
                         continue
-                    return {"success": False, "error": f"Error de conexión con el Catastro tras varios intentos: {exc}"}
+                    # Si falla por conexión, no devolvemos error inmediatamente, probamos la siguiente variante
+                    resp = None
+                    break
                 except requests.exceptions.RequestException as exc:
                     logger.error(f"[CATASTRO] Request failed: {exc}")
                     return {"success": False, "error": f"Error consultando el Catastro: {exc}"}
