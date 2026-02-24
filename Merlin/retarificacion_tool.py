@@ -8,7 +8,6 @@ Contiene tres herramientas:
 
 import json
 import logging
-import os
 from langchain.tools import tool
 from Merlin.merlin_client import create_merlin_project, get_vehicle_info_by_matricula, get_town_by_cp
 from ebroker_functions import get_all_policys_by_client_risk
@@ -207,7 +206,8 @@ def consultar_catastro_tool(
             
             if str(superficie).isdigit():
                 try:
-                    json_path = os.path.join(os.path.dirname(__file__), "precios_m2.json") #Actulizado a fecha de Diciembre de 2025
+                    import os
+                    json_path = os.path.join(os.path.dirname(__file__), "..", "precios_m2.json") #Actulizado a fecha de Diciembre de 2025
                     logger.info(f"[CONSULTAR_CATASTRO] Leyendo precios desde: {json_path}")
                     with open(json_path, "r", encoding="utf-8") as f:
                         precios = json.load(f)
