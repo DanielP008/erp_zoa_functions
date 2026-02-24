@@ -262,17 +262,13 @@ class MerlinClient:
 
     def __init__(self, config: Optional[dict] = None):
         config = config or {}
-        self.base_url = config.get("merlin_url") or os.environ.get(
-            "MERLIN_BASE_URL",
-            "https://drseguros.merlin.insure/multi/multitarificador4-servicios",
-        ).rstrip("/")
+        self.base_url = config.get("https://drseguros.merlin.insure/multi/multitarificador4-servicios") 
         self._enfocar_base_url = self.base_url.replace(
             "/multi/multitarificador4-servicios",
             "/e-nfocar-services",
         )
-        self.username = config.get("user") or os.environ.get("MERLIN_USERNAME", "")
-        self.password = config.get("pass") or os.environ.get("MERLIN_PASSWORD", "")
-        self.timeout = int(os.environ.get("MERLIN_TIMEOUT", "30"))
+        self.username = config.get("user") 
+        self.password = config.get("pass") 
         self._session = requests.Session()
         self._token: Optional[str] = None
 
@@ -618,19 +614,13 @@ class MerlinClient:
         try:
             dgt_url = f"{self._enfocar_base_url}/v1/vehiculos/{matricula}"
             logger.info(f"[MERLIN] DGT lookup: {dgt_url}")
-
-            enfocar_auth = (
-                os.environ.get("ENFOCAR_USERNAME", "ebroker"),
-                os.environ.get("ENFOCAR_PASSWORD", "ebrokerPM"),
-            )
-
             # parent = get_current_agent()
             # with Timer("merlin", "merlin_dgt_lookup", parent=parent):
             try:
                 resp = requests.get(
                     dgt_url,
                     params={"categoria": "1"},
-                    auth=enfocar_auth,
+                    #auth=enfocar_auth,
                     headers={"Accept": "application/json"},
                     timeout=self.timeout,
                 )
