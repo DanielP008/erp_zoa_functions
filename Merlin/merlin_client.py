@@ -509,12 +509,12 @@ class MerlinClient:
             logger.warning(f"[MERLIN] Tarification timed out after {max_wait}s.")
         return False
 
-    def _filter_best_offers(self, ofertas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Filter offers to keep only the cheapest one per insurer."""
+    def _process_offers(self, ofertas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Filter offers to keep only those with valid prices and sort them by price."""
         if not ofertas:
             return []
             
-        best_offers: Dict[str, Dict[str, Any]] = {}
+        valid_offers = []
         
         for oferta in ofertas:
             # Extract price
@@ -531,33 +531,14 @@ class MerlinClient:
             
             if price is None or price <= 0:
                 continue
-
-            # Extract insurer name/ID
-            insurer_name = oferta.get("nombre") # Often top-level in 'aseguradoras' list response
-            if not insurer_name:
-                aseg = oferta.get("aseguradora")
-                if isinstance(aseg, dict):
-                    insurer_name = aseg.get("nombre")
-                elif isinstance(aseg, str):
-                    insurer_name = aseg
             
-            if not insurer_name:
-                # Fallback to ID if name missing
-                insurer_name = oferta.get("id") or oferta.get("dgs")
-            
-            if not insurer_name:
-                continue
-            
-            # Normalize name to group correctly (e.g. "Mapfre" vs "MAPFRE")
-            insurer_key = str(insurer_name).strip().upper()
+            # Store tuple (price, offer) for sorting
+            valid_offers.append((price, oferta))
 
-            if insurer_key not in best_offers:
-                best_offers[insurer_key] = {"offer": oferta, "price": price}
-            else:
-                if price < best_offers[insurer_key]["price"]:
-                    best_offers[insurer_key] = {"offer": oferta, "price": price}
-
-        return [item["offer"] for item in best_offers.values()]
+        # Sort by price ascending
+        valid_offers.sort(key=lambda x: x[0])
+        
+        return [item[1] for item in valid_offers]
 
     def crear_proyecto_completo(self, datos: dict) -> Dict[str, Any]:
         """Create a complete insurance project in Merlin and launch tarification."""
@@ -638,18 +619,19 @@ class MerlinClient:
                     ofertas = proyecto_final.get("ofertas", proyecto_final.get("aseguradoras", []))
                     logger.info(f"[MERLIN] Final project raw offers count: {len(ofertas) if isinstance(ofertas, list) else 'N/A'}")
                     
-                    # Filter to keep only cheapest per insurer
+                    # Process offers: filter invalid prices and sort by price (NO filtering by insurer)
                     if isinstance(ofertas, list):
-                        filtered_offers = self._filter_best_offers(ofertas)
-                        logger.info(f"[MERLIN] Filtered offers count: {len(filtered_offers)}")
-                        # Update project object with filtered list to return clean data
+                        processed_offers = self._process_offers(ofertas)
+                        logger.info(f"[MERLIN] Processed offers count: {len(processed_offers)}")
+                        
+                        # Update project object with processed list
                         if "ofertas" in proyecto_final:
-                            proyecto_final["ofertas"] = filtered_offers
+                            proyecto_final["ofertas"] = processed_offers
                         elif "aseguradoras" in proyecto_final:
-                            proyecto_final["aseguradoras"] = filtered_offers
+                            proyecto_final["aseguradoras"] = processed_offers
                         
                         # Update local variable for success check
-                        ofertas = filtered_offers
+                        ofertas = processed_offers
                     
                     # Consideramos éxito si el estado es TARIFICADO o si ya tenemos ofertas (aunque sea un timeout parcial)
                     if estado == "TARIFICADO" or (isinstance(ofertas, list) and len(ofertas) > 0):
