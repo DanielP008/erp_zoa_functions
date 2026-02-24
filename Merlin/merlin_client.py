@@ -567,13 +567,14 @@ class MerlinClient:
                 if price <= 0:
                     continue
 
+                nombre_completo = f"{nombre_aseguradora} {descripcion}".strip()
                 all_offers.append({
-                    "nombre_aseguradora": nombre_aseguradora,
+                    "nombre_aseguradora": nombre_completo,
                     "dgs": dgs,
                     "descripcion": descripcion,
                     "prima_anual": round(price, 2),
                     "contratable": contratable,
-                    "nombre_completo": f"{nombre_aseguradora} {descripcion}".strip(),
+                    "nombre_completo": nombre_completo,
                 })
 
         all_offers.sort(key=lambda x: x["prima_anual"])
