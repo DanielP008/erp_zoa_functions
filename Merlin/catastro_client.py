@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 CATASTRO_BASE_URL = (
     "https://ovc.catastro.meh.es/ovcservweb/ovcswlocalizacionrc/ovccallejero.asmx"
 )
-CATASTRO_TIMEOUT = 15
+CATASTRO_TIMEOUT = 60
 CATASTRO_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Accept": "application/xml, text/xml, */*",
@@ -274,10 +274,10 @@ def _query_catastro_by_reference(provincia: str, municipio: str, referencia: str
     params = {"Provincia": provincia, "Municipio": municipio, "RC": referencia}
     logger.info(f"[CATASTRO] Querying by reference: {referencia}")
     
-    max_retries = 3
+    max_retries = 2
     for attempt in range(max_retries + 1):
         try:
-            resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
+            resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT, verify=False)
             resp.raise_for_status()
             return _parse_catastro_response(resp.text)
         except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as exc:
@@ -312,11 +312,13 @@ def _try_catastro_address(
             params = {**common_params, "Provincia": provincia, "Municipio": muni, "Calle": variant}
             logger.info(f"[CATASTRO] Querying: {params['Provincia']}, {params['Municipio']}, {params['Sigla']} {params['Calle']} {params['Numero']}")
 
-            max_retries = 3
+            max_retries = 1
             resp = None
+            connection_failed = False
+            
             for attempt in range(max_retries + 1):
                 try:
-                    resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
+                    resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT, verify=False)
                     if resp.status_code >= 500:
                         resp.raise_for_status()
                     if resp.status_code == 400:
@@ -336,12 +338,17 @@ def _try_catastro_address(
                     if attempt < max_retries:
                         time.sleep(CATASTRO_RETRY_DELAY * (attempt + 1))
                         continue
-                    # Si falla por conexión, no devolvemos error inmediatamente, probamos la siguiente variante
+                    # Si falla por conexión repetidamente, asumimos bloqueo global y abortamos
+                    logger.error(f"[CATASTRO] Aborting all Catastro queries due to persistent connection error: {exc}")
+                    connection_failed = True
                     resp = None
                     break
                 except requests.exceptions.RequestException as exc:
                     logger.error(f"[CATASTRO] Request failed: {exc}")
                     return {"success": False, "error": f"Error consultando el Catastro: {exc}"}
+
+            if connection_failed:
+                return {"success": False, "error": "Error de conexión persistente con Catastro (posible bloqueo)"}
 
             if resp is None or resp.status_code == 400:
                 continue
