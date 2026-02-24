@@ -11,8 +11,12 @@ import logging
 import time
 import unicodedata
 import requests
+import urllib3
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional
+
+# Desactivar advertencias de SSL inseguro para limpiar logs
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 logger = logging.getLogger(__name__)
 
@@ -21,19 +25,12 @@ CATASTRO_BASE_URL = (
 )
 CATASTRO_TIMEOUT = 60
 CATASTRO_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "es-ES,es;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "DNT": "1",
-    "Connection": "keep-alive",
-    "Upgrade-Insecure-Requests": "1",
-    "Sec-Fetch-Dest": "document",
-    "Sec-Fetch-Mode": "navigate",
-    "Sec-Fetch-Site": "none",
-    "Sec-Fetch-User": "?1",
+    "Connection": "close",
 }
-CATASTRO_RETRY_DELAY = 3.0  # Aumentado un poco el tiempo base para evitar bloqueos
+CATASTRO_RETRY_DELAY = 3.0
 
 _session = requests.Session() # Usar una sesión global para reutilizar conexiones
 
@@ -284,7 +281,7 @@ def _query_catastro_by_reference(provincia: str, municipio: str, referencia: str
     max_retries = 2
     for attempt in range(max_retries + 1):
         try:
-            resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT, verify=True)
+            resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT, verify=False)
             resp.raise_for_status()
             return _parse_catastro_response(resp.text)
         except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as exc:
@@ -293,14 +290,6 @@ def _query_catastro_by_reference(provincia: str, municipio: str, referencia: str
                 time.sleep(CATASTRO_RETRY_DELAY * (attempt + 1))
                 continue
             return {"success": False, "error": f"Error de conexión con el Catastro tras varios intentos: {exc}"}
-        except requests.exceptions.SSLError as exc:
-            logger.warning(f"[CATASTRO] SSL Error, retrying without verification: {exc}")
-            try:
-                resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT, verify=False)
-                resp.raise_for_status()
-                return _parse_catastro_response(resp.text)
-            except Exception as e:
-                return {"success": False, "error": f"SSL Error persistent: {e}"}
         except requests.exceptions.RequestException as exc:
             return {"success": False, "error": str(exc)}
     return {"success": False, "error": "Error desconocido consultando referencia"}
@@ -333,8 +322,7 @@ def _try_catastro_address(
             
             for attempt in range(max_retries + 1):
                 try:
-                    # Intentar primero con verificación SSL activada
-                    resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT, verify=True)
+                    resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT, verify=False)
                     if resp.status_code >= 500:
                         resp.raise_for_status()
                     if resp.status_code == 400:
@@ -349,14 +337,6 @@ def _try_catastro_address(
                             continue
                         break
                     break
-                except requests.exceptions.SSLError as exc:
-                    logger.warning(f"[CATASTRO] SSL Error on attempt {attempt+1}, retrying without verification: {exc}")
-                    try:
-                        resp = _session.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT, verify=False)
-                        break
-                    except Exception as e:
-                        logger.error(f"[CATASTRO] SSL retry failed: {e}")
-                        continue
                 except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as exc:
                     logger.warning(f"[CATASTRO] Connection error on attempt {attempt+1}/{max_retries+1}: {exc}")
                     if attempt < max_retries:
