@@ -262,13 +262,14 @@ class MerlinClient:
 
     def __init__(self, config: Optional[dict] = None):
         config = config or {}
-        self.base_url = config.get("https://drseguros.merlin.insure/multi/multitarificador4-servicios") 
+        self.base_url = config.get("url", "https://drseguros.merlin.insure/multi/multitarificador4-servicios") 
         self._enfocar_base_url = self.base_url.replace(
             "/multi/multitarificador4-servicios",
             "/e-nfocar-services",
         )
         self.username = config.get("user") 
         self.password = config.get("pass") 
+        self.timeout = config.get("timeout", 30)
         self._session = requests.Session()
         self._token: Optional[str] = None
 
@@ -712,7 +713,8 @@ class MerlinClient:
             
             # Handle potential 500/503 from zippopotam
             if resp.status_code >= 500:
-                 return {"success": False, "error": f"Error del servicio de códigos postales ({resp.status_code})"}
+                logger.error(f"[MERLIN] Zippopotam service error: {resp.status_code}")
+                return {"success": False, "error": f"Error del servicio de códigos postales ({resp.status_code})"}
 
             resp.raise_for_status()
             data = resp.json()
@@ -748,22 +750,28 @@ class MerlinClient:
 # Wrapper functions for tools
 # =============================================================================
 
+def _extract_tarificador_config(config: Optional[dict]) -> dict:
+    """Safely extract tarificador config, handling None and nested structures."""
+    if not config or not isinstance(config, dict):
+        return {}
+    if "tarificador" in config:
+        return config.get("tarificador", {})
+    return config
+
+
 def create_merlin_project(datos: dict, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Create a complete Merlin insurance project (Auto or Hogar)."""
-    tarificador_config = tarificador_config.get("tarificador", {})
-    client = MerlinClient(tarificador_config)
+    client = MerlinClient(_extract_tarificador_config(tarificador_config))
     return client.crear_proyecto_completo(datos)
 
 
 def get_vehicle_info_by_matricula(matricula: str, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Get vehicle info from DGT via Merlin e-nfocar-services."""
-    tarificador_config = tarificador_config.get("tarificador", {})
-    client = MerlinClient(config=tarificador_config)
+    client = MerlinClient(config=_extract_tarificador_config(tarificador_config))
     return client.consultar_dgt_por_matricula(matricula)
 
 
 def get_town_by_cp(cp: str, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Get town/poblacion info by postal code from Merlin."""
-    tarificador_config = tarificador_config.get("tarificador", {})
-    client = MerlinClient(config=tarificador_config)
+    client = MerlinClient(config=_extract_tarificador_config(tarificador_config))
     return client.obtener_poblacion_por_cp(cp)

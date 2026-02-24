@@ -494,13 +494,18 @@ def main(request):
 
             # 2. Enrichment for both (Town/CP)
             if cp:
-                town_result = get_town_by_cp(cp, request_json.get('tarificador_config'))
-                if town_result.get("success"):
-                    payload.update({
-                        "poblacion": town_result.get("poblacion"),
-                        "id_provincia": town_result.get("id_provincia"),
-                        "descripcion_provincia": town_result.get("descripcion_provincia"),
-                    })
+                try:
+                    town_result = get_town_by_cp(cp, request_json.get('tarificador_config'))
+                    if town_result.get("success"):
+                        payload.update({
+                            "poblacion": town_result.get("poblacion"),
+                            "id_provincia": town_result.get("id_provincia"),
+                            "descripcion_provincia": town_result.get("descripcion_provincia"),
+                        })
+                    else:
+                        print(f"[MERLIN] Town enrichment failed for CP {cp}: {town_result.get('error')}")
+                except Exception as e:
+                    print(f"[MERLIN] Town enrichment unexpected error for CP {cp}: {e}")
 
             # 3. Catastro enrichment for HOGAR
             if ramo == "HOGAR":
