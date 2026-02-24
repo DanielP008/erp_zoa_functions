@@ -269,7 +269,7 @@ class MerlinClient:
         )
         self.username = config.get("user") 
         self.password = config.get("pass") 
-        self.timeout = config.get("timeout", 80) 
+        self.timeout = config.get("timeout", 120) 
         self._session = requests.Session()
         self._token: Optional[str] = None
 
@@ -515,7 +515,7 @@ class MerlinClient:
             self.login()
             ramo = str(datos.get("ramo", "AUTO")).upper()
             subramo = SUBRAMO_AUTO if ramo == "AUTO" else SUBRAMO_HOGAR
-            max_wait_polling = int(datos.get("max_wait_polling", 60))
+            max_wait_polling = int(datos.get("max_wait_polling", 70))
 
             aseguradoras = self.obtener_aseguradoras(subramo)
             if not aseguradoras:
