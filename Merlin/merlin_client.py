@@ -512,6 +512,56 @@ class MerlinClient:
             logger.warning(f"[MERLIN] Tarification timed out after {max_wait}s.")
         return False
 
+    def _filter_best_offers(self, ofertas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Filter offers to keep only the cheapest one per insurer."""
+        if not ofertas:
+            return []
+            
+        best_offers: Dict[str, Dict[str, Any]] = {}
+        
+        for oferta in ofertas:
+            # Extract price
+            price = None
+            # Common fields for price in Merlin
+            for key in ["importe", "prima_anual", "prima_total", "precio", "prima", "importe_total"]:
+                val = oferta.get(key)
+                if val is not None:
+                    try:
+                        price = float(val)
+                        break
+                    except (ValueError, TypeError):
+                        pass
+            
+            if price is None or price <= 0:
+                continue
+
+            # Extract insurer name/ID
+            insurer_name = oferta.get("nombre") # Often top-level in 'aseguradoras' list response
+            if not insurer_name:
+                aseg = oferta.get("aseguradora")
+                if isinstance(aseg, dict):
+                    insurer_name = aseg.get("nombre")
+                elif isinstance(aseg, str):
+                    insurer_name = aseg
+            
+            if not insurer_name:
+                # Fallback to ID if name missing
+                insurer_name = oferta.get("id") or oferta.get("dgs")
+            
+            if not insurer_name:
+                continue
+            
+            # Normalize name to group correctly (e.g. "Mapfre" vs "MAPFRE")
+            insurer_key = str(insurer_name).strip().upper()
+
+            if insurer_key not in best_offers:
+                best_offers[insurer_key] = {"offer": oferta, "price": price}
+            else:
+                if price < best_offers[insurer_key]["price"]:
+                    best_offers[insurer_key] = {"offer": oferta, "price": price}
+
+        return [item["offer"] for item in best_offers.values()]
+
     def crear_proyecto_completo(self, datos: dict) -> Dict[str, Any]:
         """Create a complete insurance project in Merlin and launch tarification."""
         try:
@@ -586,8 +636,21 @@ class MerlinClient:
                     logger.info(f"[MERLIN] Final project keys: {list(proyecto_final.keys())}")
                     estado = proyecto_final.get("estado", proyecto_final.get("estadoProyecto", "DESCONOCIDO"))
                     logger.info(f"[MERLIN] Final project estado: {estado}")
+                    
+                    # Get raw offers
                     ofertas = proyecto_final.get("ofertas", proyecto_final.get("aseguradoras", []))
-                    logger.info(f"[MERLIN] Final project ofertas count: {len(ofertas) if isinstance(ofertas, list) else 'N/A'}")
+                    logger.info(f"[MERLIN] Final project raw offers count: {len(ofertas) if isinstance(ofertas, list) else 'N/A'}")
+                    
+                    # Filter to keep only cheapest per insurer
+                    if isinstance(ofertas, list):
+                        filtered_offers = self._filter_best_offers(ofertas)
+                        logger.info(f"[MERLIN] Filtered offers count: {len(filtered_offers)}")
+                        # Update project object with filtered list to return clean data
+                        if "ofertas" in proyecto_final:
+                            proyecto_final["ofertas"] = filtered_offers
+                        elif "aseguradoras" in proyecto_final:
+                            proyecto_final["aseguradoras"] = filtered_offers
+                    
                     if estado == "TARIFICADO":
                         tarificacion_ok = True
 
