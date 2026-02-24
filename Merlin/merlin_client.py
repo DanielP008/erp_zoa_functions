@@ -585,7 +585,8 @@ class MerlinClient:
                     logger.info(f"[MERLIN] Final project estado: {estado}")
                     ofertas = proyecto_final.get("ofertas", proyecto_final.get("aseguradoras", []))
                     logger.info(f"[MERLIN] Final project ofertas count: {len(ofertas) if isinstance(ofertas, list) else 'N/A'}")
-                    if estado == "TARIFICADO":
+                    # Consideramos éxito si el estado es TARIFICADO o si ya tenemos ofertas (aunque sea un timeout parcial)
+                    if estado == "TARIFICADO" or (isinstance(ofertas, list) and len(ofertas) > 0):
                         tarificacion_ok = True
 
                 except Exception as exc:
