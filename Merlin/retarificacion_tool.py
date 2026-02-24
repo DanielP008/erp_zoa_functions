@@ -8,6 +8,7 @@ Contiene tres herramientas:
 
 import json
 import logging
+import os
 from langchain.tools import tool
 from Merlin.merlin_client import create_merlin_project, get_vehicle_info_by_matricula, get_town_by_cp
 from ebroker_functions import get_all_policys_by_client_risk
@@ -118,6 +119,7 @@ def consultar_catastro_tool(
     puerta: str = "",
     piso: str = "",  # Alias for planta
     numero_personas: str = "3",
+    tipo_vivienda: str = "PISO_EN_ALTO",
 ) -> str:
     """
     Consulta los datos de una vivienda en el Catastro (superficie, año construcción, uso).
@@ -137,6 +139,7 @@ def consultar_catastro_tool(
         puerta: Puerta (ej: "A")
         piso: Alias para planta (opcional)
         numero_personas: Número de personas en la vivienda (ej: "3")
+        tipo_vivienda: Tipo de vivienda (PISO_EN_ALTO, PISO_EN_BAJO, ATICO, CHALET_O_VIVIENDA_UNIFAMILIAR, CHALET_O_VIVIENDA_ADOSADA)
     """
     # Combine planta/piso
     final_planta = planta or piso
@@ -173,6 +176,72 @@ def consultar_catastro_tool(
 
             logger.info(f"[CONSULTAR_CATASTRO] SUCCESS - Año: {anio}, Superficie: {superficie}m², Ref: {ref}, CP: {cp_catastro}")
             
+            # Calcular capital continente basado en JSON de precios del Ministerio y factores por tipología
+            precio_m2_base = 1500
+            capital_continente = 0
+            capital_contenido = 25000
+            factor_tipologia = 1.0
+            
+            # Factores de corrección por tipo de vivienda (Coste de reconstrucción)
+            factores = {
+                "PISO_EN_ALTO": 1.0,  # Base: comparte estructura, tejado y cimentación con otros.
+                "ATICO": 1.0,         # Similar a piso en alto en términos de estructura compartida.
+                "PISO_EN_BAJO": 1.1,  # Mayor riesgo de humedades y elementos constructivos propios a nivel de suelo.
+                "CHALET_O_VIVIENDA_ADOSADA": 1.2, # Tejado propio y al menos 2 fachadas independientes (más materiales).
+                "CHALET_O_VIVIENDA_UNIFAMILIAR": 1.4 # Máximo coste: 4 fachadas, tejado y cimentación 100% propios.
+            }
+
+            # Factores para el cálculo del contenido (€/m2 según tipología)
+            factores_contenido = {
+                "PISO_EN_ALTO": 250,
+                "ATICO": 350,
+                "PISO_EN_BAJO": 250,
+                "CHALET_O_VIVIENDA_ADOSADA": 350,
+                "CHALET_O_VIVIENDA_UNIFAMILIAR": 450
+            }
+            
+            factor_tipologia = factores.get(tipo_vivienda, 1.0)
+            precio_m2_contenido = factores_contenido.get(tipo_vivienda, 250)
+            
+            logger.info(f"[CONSULTAR_CATASTRO] Calculando capitales: tipo={tipo_vivienda}, factor_cont={factor_tipologia}, m2_contenido={precio_m2_contenido}")
+            
+            if str(superficie).isdigit():
+                try:
+                    json_path = os.path.join(os.path.dirname(__file__), "precios_m2.json") #Actulizado a fecha de Diciembre de 2025
+                    logger.info(f"[CONSULTAR_CATASTRO] Leyendo precios desde: {json_path}")
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        precios = json.load(f)
+                    
+                    # Intentar buscar por municipio, luego por provincia
+                    mun_upper = str(municipio).strip().upper()
+                    prov_upper = str(provincia).strip().upper()
+                    logger.info(f"[CONSULTAR_CATASTRO] Buscando zona: mun={mun_upper}, prov={prov_upper}")
+                    
+                    if mun_upper in precios:
+                        precio_m2_base = precios[mun_upper]
+                        logger.info(f"[CONSULTAR_CATASTRO] Encontrado precio por municipio: {precio_m2_base}")
+                    elif prov_upper in precios:
+                        precio_m2_base = precios[prov_upper]
+                        logger.info(f"[CONSULTAR_CATASTRO] Encontrado precio por provincia: {precio_m2_base}")
+                    else:
+                        precio_m2_base = precios.get("DEFAULT", 1500)
+                        logger.info(f"[CONSULTAR_CATASTRO] Usando precio DEFAULT: {precio_m2_base}")
+                        
+                    # Aplicar factor de tipología sobre el precio base de la zona para Continente
+                    precio_final_m2 = float(precio_m2_base) * factor_tipologia
+                    capital_continente = int(superficie) * int(precio_final_m2)
+                    
+                    # Calcular Contenido basado en m2 y tipología
+                    capital_contenido = int(superficie) * precio_m2_contenido
+                    
+                    logger.info(f"[CONSULTAR_CATASTRO] Calculo final: Continente={capital_continente}€, Contenido={capital_contenido}€")
+                except Exception as e:
+                    logger.error(f"[CONSULTAR_CATASTRO] Error calculando capitales: {e}")
+                    capital_continente = int(superficie) * 1500
+                    capital_contenido = 25000
+            else:
+                logger.warning(f"[CONSULTAR_CATASTRO] Superficie no es digito: {superficie}")
+            
             # Construimos un string con los datos encontrados y los valores por defecto para que el LLM los presente
             return (
                 f"DATOS ENCONTRADOS: Año: {anio}, Superficie: {superficie}, Ref: {ref}, CP: {cp_catastro}\n"
@@ -191,7 +260,10 @@ def consultar_catastro_tool(
                 f"- Ventanas: SIN_PROTECCION\n"
                 f"- Alarmas (Robo/Incendio/Agua): SIN_ALARMA\n"
                 f"- Caja fuerte: NO_TIENE\n"
-                f"- Vigilancia: SIN_VIGILANCIA"
+                f"- Vigilancia: SIN_VIGILANCIA\n"
+                f"CAPITALES RECOMENDADOS (USAR EN PASO 6):\n"
+                f"- Capital Continente Recomendado: {capital_continente} € (Precio base zona: {int(precio_m2_base)} €/m² | Factor tipo {tipo_vivienda}: {factor_tipologia}x)\n"
+                f"- Capital Contenido Recomendado: {capital_contenido} € (Calculado a {precio_m2_contenido} €/m² según tipo {tipo_vivienda})"
             )
         else:
             err = result.get('error', 'Desconocido')

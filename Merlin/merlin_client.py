@@ -260,8 +260,9 @@ def _build_historial(data: dict) -> dict:
 class MerlinClient:
     """Client for the Merlin Multitarificador API."""
 
-    def __init__(self):
-        self.base_url = os.environ.get(
+    def __init__(self, config: Optional[dict] = None):
+        config = config or {}
+        self.base_url = config.get("merlin_url") or os.environ.get(
             "MERLIN_BASE_URL",
             "https://drseguros.merlin.insure/multi/multitarificador4-servicios",
         ).rstrip("/")
@@ -269,8 +270,8 @@ class MerlinClient:
             "/multi/multitarificador4-servicios",
             "/e-nfocar-services",
         )
-        self.username = os.environ.get("MERLIN_USERNAME", "")
-        self.password = os.environ.get("MERLIN_PASSWORD", "")
+        self.username = config.get("user") or os.environ.get("MERLIN_USERNAME", "")
+        self.password = config.get("pass") or os.environ.get("MERLIN_PASSWORD", "")
         self.timeout = int(os.environ.get("MERLIN_TIMEOUT", "30"))
         self._session = requests.Session()
         self._token: Optional[str] = None
@@ -330,19 +331,29 @@ class MerlinClient:
     def obtener_aseguradoras(self, subramo: str) -> Dict[str, Any]:
         logger.info(f"[MERLIN] Fetching insurers for '{subramo}'...")
         items = self._request("GET", "/aseguradoras", "merlin_aseguradoras", params={"subramo": subramo})
+        logger.info(f"[MERLIN] API returned {len(items)} insurer entries for subramo '{subramo}'")
         aseguradoras: Dict[str, Any] = {}
         for item in items:
             dgs = item.get("id", "")
             nombre = item.get("nombre", "")
             plantillas = item.get("plantillas", [])
-            activa = next((p for p in plantillas if p.get("activa")), plantillas[0] if plantillas else None)
-            if activa:
-                aseguradoras[dgs] = {
+            activas = [p for p in plantillas if p.get("activa")]
+            logger.info(
+                f"[MERLIN]   Insurer {dgs} ({nombre}): "
+                f"{len(plantillas)} plantillas total, {len(activas)} activas"
+            )
+            for p in activas:
+                pid = p.get("id")
+                pname = p.get("nombre", "")
+                key = f"{dgs}_{pid}"
+                aseguradoras[key] = {
                     "nombre": nombre,
-                    "plantilla_id": activa.get("id"),
-                    "plantilla_nombre": activa.get("nombre"),
+                    "dgs": dgs,
+                    "plantilla_id": pid,
+                    "plantilla_nombre": pname,
                 }
-        logger.info(f"[MERLIN] Found {len(aseguradoras)} insurers.")
+                logger.info(f"[MERLIN]     -> Plantilla activa: {pid} ({pname})")
+        logger.info(f"[MERLIN] Found {len(aseguradoras)} active insurer templates.")
         return aseguradoras
 
     def obtener_proyecto_nuevo(self, plantillas_ids: List[str]) -> Dict[str, Any]:
@@ -352,7 +363,9 @@ class MerlinClient:
             "GET", "/proyecto/nuevo", "merlin_proyecto_nuevo",
             params={"idsPlantillasSeleccionadas": ids_str},
         )
-        logger.info(f"[MERLIN] Got project template with {len(proyecto.get('aseguradoras', []))} insurers.")
+         # Often the JSON returns them in 'plantillas' or 'aseguradoras'
+        count = len(proyecto.get('aseguradoras', proyecto.get('plantillas', [])))
+        logger.info(f"[MERLIN] Got project template with {count} insurers.")
         return proyecto
 
     def obtener_proyecto(self, id_proyecto: str) -> Dict[str, Any]:
@@ -363,9 +376,18 @@ class MerlinClient:
         )
 
     def guardar_proyecto(self, proyecto: Dict[str, Any]) -> Dict[str, Any]:
-        logger.info("[MERLIN] Saving project...")
+        import json as _json
+        try:
+            payload_str = _json.dumps(proyecto, default=str, ensure_ascii=False)
+            print(f"[MERLIN] guardar_proyecto FULL PAYLOAD ({len(payload_str)} chars):")
+            for i in range(0, min(len(payload_str), 6000), 500):
+                print(f"  CHUNK[{i}]: {payload_str[i:i+500]}")
+            datos_b = proyecto.get("datosBasicos") or proyecto.get("datos_basicos", {})
+            print(f"[MERLIN] datosBasicos keys: {list(datos_b.keys()) if isinstance(datos_b, dict) else 'NOT_DICT'}")
+        except Exception as e:
+            print(f"[MERLIN] Could not serialize proyecto for logging: {e}")
         result = self._request("PUT", "/proyecto", "merlin_guardar_proyecto", json=proyecto)
-        logger.info(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
+        print(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
         return result
 
     def guardar_datos_adicionales_hogar(self, id_pasarela: str, data: dict) -> Dict[str, Any]:
@@ -451,7 +473,7 @@ class MerlinClient:
         process_id: str,
         mongo_id: str,
         subramo: str,
-        max_wait: int = 60,
+        max_wait: int = 70,
         interval: int = 5,
     ) -> bool:
         """Poll tarificacion/estado until finished or timeout.
@@ -460,6 +482,9 @@ class MerlinClient:
         Returns True if tarification completed, False on timeout/error.
         """
         elapsed = 0
+        consecutive_errors = 0
+        max_errors = 3
+
         while elapsed < max_wait:
             time.sleep(interval)
             elapsed += interval
@@ -473,12 +498,16 @@ class MerlinClient:
                     f"[MERLIN] Tarification poll ({elapsed}s): "
                     f"finished={finished}"
                 )
+                consecutive_errors = 0 # reset on success
                 if finished:
                     logger.info("[MERLIN] Tarification completed successfully.")
                     return True
             except Exception as exc:
-                logger.warning(f"[MERLIN] Tarification poll error ({elapsed}s): {exc}")
-                break
+                consecutive_errors += 1
+                logger.warning(f"[MERLIN] Tarification poll error ({elapsed}s, error {consecutive_errors}/{max_errors}): {exc}")
+                if consecutive_errors >= max_errors:
+                    logger.error("[MERLIN] Too many consecutive polling errors. Aborting poll.")
+                    break
         if elapsed >= max_wait:
             logger.warning(f"[MERLIN] Tarification timed out after {max_wait}s.")
         return False
@@ -489,6 +518,7 @@ class MerlinClient:
             self.login()
             ramo = str(datos.get("ramo", "AUTO")).upper()
             subramo = SUBRAMO_AUTO if ramo == "AUTO" else SUBRAMO_HOGAR
+            max_wait_polling = int(datos.get("max_wait_polling", 60))
 
             aseguradoras = self.obtener_aseguradoras(subramo)
             if not aseguradoras:
@@ -508,7 +538,7 @@ class MerlinClient:
             else:
                 datos_basicos["riesgo_hogar"] = _build_riesgo_hogar(datos)
                 datos_basicos["propietario"] = _build_persona(datos, "PROPIETARIO")
-                datos_basicos["class_name"] = DATOS_BASICOS_HOGAR_CLASS
+                datos_basicos["@class"] = DATOS_BASICOS_HOGAR_CLASS
 
             datos_basicos["tomador"] = _build_persona(datos, "TOMADOR")
 
@@ -540,7 +570,7 @@ class MerlinClient:
                     )
                     if process_id:
                         tarificacion_ok = self._poll_tarificacion(
-                            process_id, mongo_id, subramo
+                            process_id, mongo_id, subramo, max_wait=max_wait_polling
                         )
                     else:
                         logger.warning("[MERLIN] No process ID returned from iniciar.")
@@ -676,13 +706,23 @@ class MerlinClient:
             url = f"https://api.zippopotam.us/es/{cp}"
             logger.info(f"[MERLIN] Postal code lookup: {url}")
 
-            # parent = get_current_agent()
-            # with Timer("merlin", "merlin_towns_lookup", parent=parent):
-            resp = requests.get(url, timeout=10)
+            # Verify SSL is disabled to avoid certificate issues in some environments
+            # or ensure certificates are up to date. For now, we'll use verify=False
+            # as a fallback if standard verification fails, but default to True.
+            try:
+                resp = requests.get(url, timeout=10)
+            except requests.exceptions.SSLError:
+                logger.warning("[MERLIN] SSL verification failed for zippopotam.us, retrying without verification.")
+                resp = requests.get(url, timeout=10, verify=False)
+
             logger.info(f"[MERLIN] Postal code response status: {resp.status_code}")
 
             if resp.status_code == 404:
                 return {"success": False, "error": f"No se encontró población para el CP {cp}"}
+            
+            # Handle potential 500/503 from zippopotam
+            if resp.status_code >= 500:
+                 return {"success": False, "error": f"Error del servicio de códigos postales ({resp.status_code})"}
 
             resp.raise_for_status()
             data = resp.json()
@@ -718,19 +758,22 @@ class MerlinClient:
 # Wrapper functions for tools
 # =============================================================================
 
-def create_merlin_project(datos: dict) -> Dict[str, Any]:
+def create_merlin_project(datos: dict, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Create a complete Merlin insurance project (Auto or Hogar)."""
-    client = MerlinClient()
+    tarificador_config = tarificador_config.get("tarificador", {})
+    client = MerlinClient(tarificador_config)
     return client.crear_proyecto_completo(datos)
 
 
-def get_vehicle_info_by_matricula(matricula: str) -> Dict[str, Any]:
+def get_vehicle_info_by_matricula(matricula: str, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Get vehicle info from DGT via Merlin e-nfocar-services."""
-    client = MerlinClient()
+    tarificador_config = tarificador_config.get("tarificador", {})
+    client = MerlinClient(config=tarificador_config)
     return client.consultar_dgt_por_matricula(matricula)
 
 
-def get_town_by_cp(cp: str) -> Dict[str, Any]:
+def get_town_by_cp(cp: str, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
     """Get town/poblacion info by postal code from Merlin."""
-    client = MerlinClient()
+    tarificador_config = tarificador_config.get("tarificador", {})
+    client = MerlinClient(config=tarificador_config)
     return client.obtener_poblacion_por_cp(cp)

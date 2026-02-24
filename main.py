@@ -4,6 +4,7 @@ import database_functions
 import excel_functions
 import json
 import firebase_admin
+import os
 from firebase_admin import db,credentials,storage,firestore
 from datetime import datetime, timedelta
 from Merlin.merlin_client import create_merlin_project, get_vehicle_info_by_matricula, get_town_by_cp
@@ -58,22 +59,29 @@ def main(request):
 
 
     # Load Firebase data
+   
     company_config = database_functions.get_company_config(company_id)
+
     system = company_config.get('system', "")
 
-    if isinstance(company_config, dict) and "error" in company_config:
-        return company_config, 500
+    if not (option and option.startswith('merlin_')):
+        if isinstance(company_config, dict) and "error" in company_config:
+            return company_config, 500
 
-    if not company_config:
-        return {"error": f"Configuration not found for company_id: {company_id}"}, 404
-
+        if not company_config:
+            return {"error": f"Configuration not found for company_id: {company_id}"}, 404
+    
     # Extract ERP config for local usage
     erp_config = company_config.get('erp', {})
 
     # Normalize erp_type
     raw_erp_type = str(erp_config.get('erp_type', '')).strip().lower()
 
-    if raw_erp_type == 'ebroker':
+    client = None
+    # Skip ERP login for Merlin operations that don't need it
+    if option and option.startswith('merlin_'):
+        pass
+    elif raw_erp_type == 'ebroker':
         try:
             client = erp_auth.get_erp_client(company_config)
             if not client or isinstance(client, str):
@@ -94,7 +102,10 @@ def main(request):
 
     #========== TOOL METHODS ==========
     try:
-
+        # Inyect tarificador config from Firebase into payload for Merlin
+        if isinstance(company_config, dict):
+            request_json['tarificador_config'] = company_config.get('tarificador', {})
+        
         # CLAIMS
         # Needs another piece of data in the input JSON 'nif_cliente'
         if option == 'get_claims':
@@ -301,7 +312,7 @@ def main(request):
             if not matricula:
                 return {"error": "Missing mandatory parameter: matricula"}, 400
             
-            dgt_result = get_vehicle_info_by_matricula(matricula)
+            dgt_result = get_vehicle_info_by_matricula(matricula, request_json.get('tarificador_config'))
             if dgt_result.get("success"):
                 v = dgt_result.get("vehiculo", {})
                 def clean(val):
@@ -331,7 +342,7 @@ def main(request):
             cp = request_json.get('cp', '').strip()
             if not cp:
                 return {"error": "Missing mandatory parameter: cp"}, 400
-            return get_town_by_cp(cp)
+            return get_town_by_cp(cp, request_json.get('tarificador_config'))
 
         if option == 'merlin_consultar_catastro':
             # Input: {"option": "merlin_consultar_catastro", "provincia": "...", "municipio": "...", ...}
@@ -362,6 +373,69 @@ def main(request):
                 planta=planta,
                 puerta=puerta,
             )
+            
+            # Calculate capitals if successful, to help the agent suggest values
+            if result.get("success"):
+                try:
+                    tipo_vivienda = request_json.get('tipo_vivienda', 'PISO_EN_ALTO')
+                    superficie = result.get('superficie', 90)
+                    
+                    factores = {
+                        "PISO_EN_ALTO": 1.0,
+                        "ATICO": 1.0,
+                        "PISO_EN_BAJO": 1.1,
+                        "CHALET_O_VIVIENDA_ADOSADA": 1.2,
+                        "CHALET_O_VIVIENDA_UNIFAMILIAR": 1.4
+                    }
+                    factores_contenido = {
+                        "PISO_EN_ALTO": 250,
+                        "ATICO": 350,
+                        "PISO_EN_BAJO": 250,
+                        "CHALET_O_VIVIENDA_ADOSADA": 350,
+                        "CHALET_O_VIVIENDA_UNIFAMILIAR": 450
+                    }
+                    
+                    factor_tipologia = factores.get(tipo_vivienda, 1.0)
+                    precio_m2_contenido = factores_contenido.get(tipo_vivienda, 250)
+                    
+                    precio_m2_base = 1500
+                    capital_continente = 0
+                    capital_contenido = 25000
+                    
+                    if str(superficie).isdigit():
+                        json_path = os.path.join(os.path.dirname(__file__), "Merlin", "precios_m2.json")
+                        if os.path.exists(json_path):
+                            with open(json_path, "r", encoding="utf-8") as f:
+                                precios = json.load(f)
+                            
+                            mun_upper = str(municipio).strip().upper()
+                            prov_upper = str(provincia).strip().upper()
+                            
+                            if mun_upper in precios:
+                                precio_m2_base = precios[mun_upper]
+                            elif prov_upper in precios:
+                                precio_m2_base = precios[prov_upper]
+                            else:
+                                precio_m2_base = precios.get("DEFAULT", 1500)
+                        
+                        precio_final_m2 = float(precio_m2_base) * factor_tipologia
+                        capital_continente = int(superficie) * int(precio_final_m2)
+                        capital_contenido = int(superficie) * precio_m2_contenido
+                    else:
+                        capital_continente = 90 * 1500
+                        capital_contenido = 25000
+                        
+                    result['capital_continente'] = capital_continente
+                    result['capital_contenido'] = capital_contenido
+                    result['precio_m2_base'] = precio_m2_base
+                    result['factor_tipologia'] = factor_tipologia
+                    result['precio_m2_contenido'] = precio_m2_contenido
+                    
+                except Exception as e:
+                    print(f"Error calculating capitals in merlin_consultar_catastro: {e}")
+                    # Don't fail the whole request, just return without capitals
+                    pass
+
             return result
 
         if option == 'merlin_create_project':
@@ -379,7 +453,7 @@ def main(request):
             if ramo == "AUTO":
                 matricula = payload.get("matricula")
                 if matricula:
-                    dgt_result = get_vehicle_info_by_matricula(matricula)
+                    dgt_result = get_vehicle_info_by_matricula(matricula, request_json.get('tarificador_config'))
                     if dgt_result.get("success"):
                         v = dgt_result.get("vehiculo", {})
                         payload.update({
@@ -420,7 +494,7 @@ def main(request):
 
             # 2. Enrichment for both (Town/CP)
             if cp:
-                town_result = get_town_by_cp(cp)
+                town_result = get_town_by_cp(cp, request_json.get('tarificador_config'))
                 if town_result.get("success"):
                     payload.update({
                         "poblacion": town_result.get("poblacion"),
@@ -456,12 +530,14 @@ def main(request):
                         cat_anio = catastro_result.get("anio_construccion")
                         cat_ref = catastro_result.get("referencia_catastral")
 
-                        if cat_superficie and "superficie_vivienda" not in payload:
+                        if cat_superficie:
                             payload["superficie_vivienda"] = int(cat_superficie)
-                        if cat_anio and "anio_construccion" not in payload:
+                        if cat_anio:
                             payload["anio_construccion"] = int(cat_anio)
                         if cat_ref:
                             payload["referencia_catastral"] = cat_ref
+                    else:
+                        print(f"[CATASTRO] Enrichment failed: {catastro_result.get('error', 'unknown')}")
 
                 # Fallback values / Defaults
                 if "superficie_vivienda" not in payload: payload["superficie_vivienda"] = 90
@@ -487,15 +563,76 @@ def main(request):
                 for k, v in defaults.items():
                     if k not in payload: payload[k] = v
 
+                # Calcular capitales continente y contenido
+                if "capital_continente" not in payload or "capital_contenido" not in payload:
+                    superficie = payload.get("superficie_vivienda", 90)
+                    tipo_vivienda = payload.get("tipo_vivienda", "PISO_EN_ALTO")
+                    
+                    factores = {
+                        "PISO_EN_ALTO": 1.0,
+                        "ATICO": 1.0,
+                        "PISO_EN_BAJO": 1.1,
+                        "CHALET_O_VIVIENDA_ADOSADA": 1.2,
+                        "CHALET_O_VIVIENDA_UNIFAMILIAR": 1.4
+                    }
+                    factores_contenido = {
+                        "PISO_EN_ALTO": 250,
+                        "ATICO": 350,
+                        "PISO_EN_BAJO": 250,
+                        "CHALET_O_VIVIENDA_ADOSADA": 350,
+                        "CHALET_O_VIVIENDA_UNIFAMILIAR": 450
+                    }
+                    
+                    factor_tipologia = factores.get(tipo_vivienda, 1.0)
+                    precio_m2_contenido = factores_contenido.get(tipo_vivienda, 250)
+                    
+                    capital_continente = 0
+                    capital_contenido = 25000
+                    precio_m2_base = 1500
+                    
+                    if str(superficie).isdigit():
+                        try:
+                            json_path = os.path.join(os.path.dirname(__file__), "Merlin", "precios_m2.json")
+                            with open(json_path, "r", encoding="utf-8") as f:
+                                precios = json.load(f)
+                            
+                            mun_upper = str(payload.get("poblacion", "")).strip().upper()
+                            prov_upper = str(payload.get("descripcion_provincia", "")).strip().upper()
+                            
+                            if mun_upper in precios:
+                                precio_m2_base = precios[mun_upper]
+                            elif prov_upper in precios:
+                                precio_m2_base = precios[prov_upper]
+                            else:
+                                precio_m2_base = precios.get("DEFAULT", 1500)
+                                
+                            precio_final_m2 = float(precio_m2_base) * factor_tipologia
+                            capital_continente = int(superficie) * int(precio_final_m2)
+                            capital_contenido = int(superficie) * precio_m2_contenido
+                        except Exception as e:
+                            capital_continente = int(superficie) * 1500
+                            capital_contenido = 25000
+                    else:
+                        capital_continente = 90 * 1500
+                        capital_contenido = 25000
+                        
+                    if "capital_continente" not in payload: payload["capital_continente"] = capital_continente
+                    if "capital_contenido" not in payload: payload["capital_contenido"] = capital_contenido
+
+
             # 5. Create project in Merlin
-            result = create_merlin_project(payload)
+            import json as _json
+            print(f"[MAIN] Payload keys before create_merlin_project: {list(payload.keys())}")
+            print(f"[MAIN] Payload (first 2000): {_json.dumps(payload, default=str, ensure_ascii=False)[:2000]}")
+            result = create_merlin_project(payload,company_config)
             return result
     
     except Exception as e:
         return {'error': f"Error executing operation {option}: {str(e)}"}, 500
 
     finally:
-        client.close()
+        if client and hasattr(client, 'close'):
+            client.close()
     return {"error": "Invalid option"}, 400
 
 def get_nif_by_phone(company_id, phone):

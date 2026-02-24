@@ -1,5 +1,15 @@
 import json
+from functools import lru_cache
 
+@lru_cache(maxsize=1)
+def _load_company_phones():
+    try:
+        with open('insurance_phones.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        return {"error": f"[ERROR] Failed to load insurance_phones.json: {e}"}
+
+@lru_cache(maxsize=512)
 def get_phones(company_name):
     """
     Retrieves contact phone numbers for an insurance company from insurance_phones.json.
@@ -7,11 +17,9 @@ def get_phones(company_name):
     if not company_name:
         return {}
     
-    try:
-        with open('insurance_phones.json', 'r', encoding='utf-8') as f:
-            company_phones = json.load(f)
-    except Exception as e:
-        return {"error": f"[ERROR] Failed to load insurance_phones.json: {e}"}
+    company_phones = _load_company_phones()
+    if "error" in company_phones:
+        return company_phones
     
     company_clean = company_name.lower().replace('_', ' ')
     
