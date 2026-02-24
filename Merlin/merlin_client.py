@@ -470,7 +470,7 @@ class MerlinClient:
         process_id: str,
         mongo_id: str,
         subramo: str,
-        max_wait: int = 70,
+        max_wait: int = 60,
         interval: int = 5,
     ) -> bool:
         """Poll tarificacion/estado until finished or timeout.
@@ -509,36 +509,76 @@ class MerlinClient:
             logger.warning(f"[MERLIN] Tarification timed out after {max_wait}s.")
         return False
 
-    def _process_offers(self, ofertas: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Filter offers to keep only those with valid prices and sort them by price."""
-        if not ofertas:
-            return []
-            
-        valid_offers = []
-        
-        for oferta in ofertas:
-            # Extract price
-            price = None
-            # Common fields for price in Merlin
-            for key in ["importe", "prima_anual", "prima_total", "precio", "prima", "importe_total"]:
-                val = oferta.get(key)
-                if val is not None:
-                    try:
-                        price = float(val)
-                        break
-                    except (ValueError, TypeError):
-                        pass
-            
-            if price is None or price <= 0:
-                continue
-            
-            # Store tuple (price, offer) for sorting
-            valid_offers.append((price, oferta))
+    def _extract_all_offers(self, proyecto: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Extract ALL offers from the real Merlin project structure.
 
-        # Sort by price ascending
-        valid_offers.sort(key=lambda x: x[0])
-        
-        return [item[1] for item in valid_offers]
+        Merlin nests offers inside:
+          procesos_de_tarificacion[last].tarificaciones[N].resultado.modalidades[M]
+
+        Each tarificacion = one insurer, each modalidad = one product/tier.
+        Returns a flat list of dicts with insurer name, product name, and price,
+        sorted by price ascending.
+        """
+        all_offers: List[Dict[str, Any]] = []
+
+        procesos = proyecto.get("procesos_de_tarificacion", [])
+        if not procesos:
+            logger.warning("[MERLIN] No procesos_de_tarificacion found in project")
+            return all_offers
+
+        # Use the last (most recent) tarification process
+        proceso = procesos[-1]
+        tarificaciones = proceso.get("tarificaciones", [])
+        logger.info(f"[MERLIN] Found {len(tarificaciones)} tarificaciones in latest process")
+
+        for tarif in tarificaciones:
+            resultado = tarif.get("resultado", {})
+            if not resultado:
+                continue
+
+            nombre_aseguradora = resultado.get("nombre_aseguradora", "")
+            dgs = resultado.get("dgs", "")
+            finalizada = resultado.get("finalizada", False)
+            con_respuesta = resultado.get("con_respuesta_de_compania", False)
+
+            if not finalizada or not con_respuesta:
+                continue
+
+            modalidades = resultado.get("modalidades", [])
+            for mod_entry in modalidades:
+                modalidad = mod_entry.get("modalidad", {})
+                if not modalidad:
+                    continue
+
+                descripcion = modalidad.get("descripcion", "")
+                contratable = modalidad.get("contratable", False)
+
+                prima_anual = modalidad.get("prima_anual", {})
+                price = None
+                if isinstance(prima_anual, dict):
+                    price = prima_anual.get("prima_anualizada")
+
+                if price is None:
+                    continue
+                try:
+                    price = float(price)
+                except (ValueError, TypeError):
+                    continue
+                if price <= 0:
+                    continue
+
+                all_offers.append({
+                    "nombre_aseguradora": nombre_aseguradora,
+                    "dgs": dgs,
+                    "descripcion": descripcion,
+                    "prima_anual": round(price, 2),
+                    "contratable": contratable,
+                    "nombre_completo": f"{nombre_aseguradora} {descripcion}".strip(),
+                })
+
+        all_offers.sort(key=lambda x: x["prima_anual"])
+        logger.info(f"[MERLIN] Extracted {len(all_offers)} total offers across all insurers")
+        return all_offers
 
     def crear_proyecto_completo(self, datos: dict) -> Dict[str, Any]:
         """Create a complete insurance project in Merlin and launch tarification."""
@@ -608,33 +648,18 @@ class MerlinClient:
             # Always fetch final project – polling calls persist insurer
             # results, so the project may be tarified even on timeout.
             proyecto_final = {}
+            ofertas_extraidas = []
             if mongo_id:
                 try:
                     proyecto_final = self.obtener_proyecto(mongo_id)
                     logger.info(f"[MERLIN] Final project keys: {list(proyecto_final.keys())}")
                     estado = proyecto_final.get("estado", proyecto_final.get("estadoProyecto", "DESCONOCIDO"))
                     logger.info(f"[MERLIN] Final project estado: {estado}")
-                    
-                    # Get raw offers
-                    ofertas = proyecto_final.get("ofertas", proyecto_final.get("aseguradoras", []))
-                    logger.info(f"[MERLIN] Final project raw offers count: {len(ofertas) if isinstance(ofertas, list) else 'N/A'}")
-                    
-                    # Process offers: filter invalid prices and sort by price (NO filtering by insurer)
-                    if isinstance(ofertas, list):
-                        processed_offers = self._process_offers(ofertas)
-                        logger.info(f"[MERLIN] Processed offers count: {len(processed_offers)}")
-                        
-                        # Update project object with processed list
-                        if "ofertas" in proyecto_final:
-                            proyecto_final["ofertas"] = processed_offers
-                        elif "aseguradoras" in proyecto_final:
-                            proyecto_final["aseguradoras"] = processed_offers
-                        
-                        # Update local variable for success check
-                        ofertas = processed_offers
-                    
-                    # Consideramos éxito si el estado es TARIFICADO o si ya tenemos ofertas (aunque sea un timeout parcial)
-                    if estado == "TARIFICADO" or (isinstance(ofertas, list) and len(ofertas) > 0):
+
+                    # Extract ALL offers from the nested tarificaciones structure
+                    ofertas_extraidas = self._extract_all_offers(proyecto_final)
+
+                    if estado == "TARIFICADO" or len(ofertas_extraidas) > 0:
                         tarificacion_ok = True
 
                 except Exception as exc:
@@ -649,6 +674,7 @@ class MerlinClient:
                 "mensaje": f"Proyecto de {ramo} creado con {len(plantillas_ids)} aseguradoras"
                            + (" y tarificación iniciada" if tarificacion_ok else ""),
                 "num_aseguradoras": len(plantillas_ids),
+                "ofertas": ofertas_extraidas,
                 "proyecto": proyecto_final,
             }
 
