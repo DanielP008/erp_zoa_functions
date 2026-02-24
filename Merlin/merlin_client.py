@@ -269,7 +269,7 @@ class MerlinClient:
         )
         self.username = config.get("user") 
         self.password = config.get("pass") 
-        self.timeout = config.get("timeout", 120) 
+        self.timeout = config.get("timeout", 300) 
         self._session = requests.Session()
         self._token: Optional[str] = None
 
