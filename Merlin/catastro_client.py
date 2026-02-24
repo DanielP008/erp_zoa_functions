@@ -270,12 +270,22 @@ def _query_catastro_by_reference(provincia: str, municipio: str, referencia: str
     url = f"{CATASTRO_BASE_URL}/Consulta_DNPRC"
     params = {"Provincia": provincia, "Municipio": municipio, "RC": referencia}
     logger.info(f"[CATASTRO] Querying by reference: {referencia}")
-    try:
-        resp = requests.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
-        resp.raise_for_status()
-    except requests.exceptions.RequestException as exc:
-        return {"success": False, "error": str(exc)}
-    return _parse_catastro_response(resp.text)
+    
+    max_retries = 3
+    for attempt in range(max_retries + 1):
+        try:
+            resp = requests.get(url, params=params, headers=CATASTRO_HEADERS, timeout=CATASTRO_TIMEOUT)
+            resp.raise_for_status()
+            return _parse_catastro_response(resp.text)
+        except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as exc:
+            logger.warning(f"[CATASTRO] Connection error on reference query attempt {attempt+1}/{max_retries+1}: {exc}")
+            if attempt < max_retries:
+                time.sleep(CATASTRO_RETRY_DELAY * (attempt + 1))
+                continue
+            return {"success": False, "error": f"Error de conexión con el Catastro tras varios intentos: {exc}"}
+        except requests.exceptions.RequestException as exc:
+            return {"success": False, "error": str(exc)}
+    return {"success": False, "error": "Error desconocido consultando referencia"}
 
 
 def _try_catastro_address(
@@ -299,7 +309,7 @@ def _try_catastro_address(
             params = {**common_params, "Provincia": provincia, "Municipio": muni, "Calle": variant}
             logger.info(f"[CATASTRO] Querying: {params['Provincia']}, {params['Municipio']}, {params['Sigla']} {params['Calle']} {params['Numero']}")
 
-            max_retries = 2
+            max_retries = 3
             resp = None
             for attempt in range(max_retries + 1):
                 try:
@@ -318,6 +328,12 @@ def _try_catastro_address(
                             continue
                         break
                     break
+                except (requests.exceptions.ConnectionError, requests.exceptions.ChunkedEncodingError) as exc:
+                    logger.warning(f"[CATASTRO] Connection error on attempt {attempt+1}/{max_retries+1}: {exc}")
+                    if attempt < max_retries:
+                        time.sleep(CATASTRO_RETRY_DELAY * (attempt + 1))
+                        continue
+                    return {"success": False, "error": f"Error de conexión con el Catastro tras varios intentos: {exc}"}
                 except requests.exceptions.RequestException as exc:
                     logger.error(f"[CATASTRO] Request failed: {exc}")
                     return {"success": False, "error": f"Error consultando el Catastro: {exc}"}
