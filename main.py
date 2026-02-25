@@ -58,19 +58,27 @@ def main(request):
 
 
 
-    # Load Firebase data
-   
-    company_config = database_functions.get_company_config(company_id)
+    # Load Firebase data (skip for Merlin operations that don't need ERP credentials)
+    is_merlin_op = option and option.startswith('merlin_')
 
-    system = company_config.get('system', "")
+    if is_merlin_op:
+        try:
+            company_config = database_functions.get_company_config(company_id)
+        except Exception:
+            company_config = {}
+        if not isinstance(company_config, dict) or "error" in (company_config or {}):
+            company_config = {}
+    else:
+        company_config = database_functions.get_company_config(company_id)
 
-    if not (option and option.startswith('merlin_')):
         if isinstance(company_config, dict) and "error" in company_config:
             return company_config, 500
 
         if not company_config:
             return {"error": f"Configuration not found for company_id: {company_id}"}, 404
-    
+
+    system = company_config.get('system', "")
+
     # Extract ERP config for local usage
     erp_config = company_config.get('erp', {})
 
