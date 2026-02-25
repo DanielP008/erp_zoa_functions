@@ -484,21 +484,17 @@ def main(request):
                     
                     # ERP Enrichment for current policy info
                     if dni and matricula and company_id:
-                         # We use the existing 'client' instance from main logic
                         try:
-                            # Verify if method exists on this client type
-                            # Assuming client is EBrokerClient
                             if hasattr(client, 'get_all_policys_by_client_risk'):
                                 erp_result = client.get_all_policys_by_client_risk(dni, matricula, company_id)
                                 if erp_result:
-                                    # Take first match
                                     policy = erp_result[0]
-                                    payload.update({
-                                        "aseguradora_actual": policy.get("company_name") or policy.get("company_id"),
-                                        "num_poliza": policy.get("number"),
-                                    })
+                                    if not payload.get("aseguradora_actual"):
+                                        payload["aseguradora_actual"] = policy.get("company_name") or policy.get("company_id") or ""
+                                    if not payload.get("num_poliza"):
+                                        payload["num_poliza"] = policy.get("number") or ""
                         except Exception as e:
-                            print(f"ERP enrichment failed: {e}") # Non-blocking
+                            print(f"ERP enrichment failed: {e}")
 
             # 2. Enrichment for both (Town/CP)
             if cp:

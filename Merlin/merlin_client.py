@@ -237,18 +237,28 @@ def _build_persona(data: dict, tipo_figura: str) -> dict:
 
 def _build_historial(data: dict) -> dict:
     """Build historial_asegurador dict for datos_basicos."""
+    from Merlin.aseguradoras_map import find_aseguradora_code
+
     fecha_efecto = _parse_date(data.get("fecha_efecto"))
+
+    raw_poliza = str(data.get("num_poliza", "")).strip()
+    digits_only = "".join(c for c in raw_poliza if c.isdigit())
+    num_poliza_short = digits_only[-5:] if digits_only else ""
+
+    raw_aseguradora = data.get("aseguradora_actual", "")
+    aseguradora_code = find_aseguradora_code(raw_aseguradora) or raw_aseguradora
+    logger.info(f"[MERLIN] Aseguradora mapping: '{raw_aseguradora}' -> '{aseguradora_code}'")
 
     return {
         "fecha": fecha_efecto or [2026, 3, 1],
         "matricula": data.get("matricula", ""),
         "tipo_matricula": data.get("tipo_matricula", "ACTUAL"),
-        "anos_asegurados": data.get("anos_asegurado", 0),
-        "num_poliza": data.get("num_poliza", ""),
-        "aseguradora_actual": data.get("aseguradora_actual", ""),
-        "anos_compania": data.get("anos_compania", 0),
-        "siniestros": data.get("siniestros", False),
-        "anos_sin_siniestros": data.get("anos_sin_siniestros", 0),
+        "anos_asegurados": 0,
+        "num_poliza": num_poliza_short,
+        "aseguradora_actual": aseguradora_code,
+        "anos_compania": 0,
+        "siniestros": False,
+        "anos_sin_siniestros": 0,
         "datos_validos": True,
     }
 
@@ -272,6 +282,10 @@ class MerlinClient:
         self.timeout = config.get("timeout", 300) 
         self._session = requests.Session()
         self._token: Optional[str] = None
+
+        enfocar_cfg = config.get("enfocar", {})
+        self._enfocar_user = enfocar_cfg.get("user") or os.environ.get("ENFOCAR_USERNAME", "ebroker")
+        self._enfocar_pass = enfocar_cfg.get("pass") or os.environ.get("ENFOCAR_PASSWORD", "ebrokerPM")
 
     def _ensure_config(self):
         if not self.username or not self.password:
@@ -689,15 +703,18 @@ class MerlinClient:
     def consultar_dgt_por_matricula(self, matricula: str) -> Dict[str, Any]:
         """Consulta datos del vehiculo en la DGT via e-nfocar-services."""
         try:
+            if not self._enfocar_user or not self._enfocar_pass:
+                raise MerlinClientError(
+                    "e-nfocar credentials not configured. Set enfocar.user/enfocar.pass "
+                    "in tarificador config, or ENFOCAR_USER/ENFOCAR_PASS env vars."
+                )
             dgt_url = f"{self._enfocar_base_url}/v1/vehiculos/{matricula}"
             logger.info(f"[MERLIN] DGT lookup: {dgt_url}")
-            # parent = get_current_agent()
-            # with Timer("merlin", "merlin_dgt_lookup", parent=parent):
             try:
                 resp = requests.get(
                     dgt_url,
                     params={"categoria": "1"},
-                    #auth=enfocar_auth,
+                    auth=(self._enfocar_user, self._enfocar_pass),
                     headers={"Accept": "application/json"},
                     timeout=self.timeout,
                 )
