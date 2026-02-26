@@ -239,6 +239,8 @@ class MerlinCreateProjectRequest(BaseRequest): # option: 'merlin_create_project'
     # AUTO fields
     matricula: Optional[str]
     tipo_de_garaje: Optional[str]
+    es_tomador: Optional[bool]       # True if conductor == tomador
+    es_propietario: Optional[bool]   # True if conductor == propietario
     
     # HOGAR fields
     nombre_via: Optional[str]

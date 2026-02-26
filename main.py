@@ -459,6 +459,10 @@ def main(request):
 
             # 1. Enrichment for AUTO only (Vehicle info)
             if ramo == "AUTO":
+                # Ensure HOGAR fields are not present/calculated
+                for key in ["capital_continente", "capital_contenido", "superficie_vivienda", "anio_construccion", "tipo_vivienda"]:
+                    payload.pop(key, None)
+
                 matricula = payload.get("matricula")
                 if matricula:
                     dgt_result = get_vehicle_info_by_matricula(matricula, request_json.get('tarificador_config'))
@@ -632,6 +636,8 @@ def main(request):
             # 5. Create project in Merlin
             import json as _json
             print(f"[MAIN] Payload keys before create_merlin_project: {list(payload.keys())}")
+            if ramo == "AUTO":
+                print(f"[MAIN] AUTO flags: es_tomador={payload.get('es_tomador')}, es_propietario={payload.get('es_propietario')}")
             print(f"[MAIN] Payload (first 2000): {_json.dumps(payload, default=str, ensure_ascii=False)[:2000]}")
             result = create_merlin_project(payload,company_config)
             return result

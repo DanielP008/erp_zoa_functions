@@ -225,7 +225,7 @@ def _build_persona(data: dict, tipo_figura: str) -> dict:
 
     p["tipo_carnet"] = data.get("tipo_carnet", "B")
 
-    fecha_carnet = _parse_date(data.get("fecha_carnet"))
+    fecha_carnet = _parse_date(data.get("fecha_carnet") or data.get("fecha_expedicion_carnet"))
     if fecha_carnet:
         p["fecha_carnet"] = fecha_carnet
 
@@ -617,6 +617,8 @@ class MerlinClient:
                 datos_basicos["conductor"] = _build_persona(datos, "CONDUCTOR")
                 datos_basicos["propietario"] = _build_persona(datos, "PROPIETARIO")
                 datos_basicos["historial_asegurador"] = _build_historial(datos)
+                datos_basicos["conductor_es_tomador"] = datos.get("es_tomador", True)
+                datos_basicos["conductor_es_propietario"] = datos.get("es_propietario", True)
                 datos_basicos["@class"] = DATOS_BASICOS_AUTO_CLASS
             else:
                 datos_basicos["riesgo_hogar"] = _build_riesgo_hogar(datos)
