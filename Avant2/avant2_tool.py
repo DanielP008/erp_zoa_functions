@@ -9,7 +9,7 @@ from typing import Dict, Any
 
 from .avant2_client import Avant2Client, SUBRAMO_AUTO
 from .cp_client import obtener_poblacion_por_cp
-from .dgt_client import consultar_dgt_por_matricula
+from Merlin.merlin_client import get_vehicle_info_by_matricula as consultar_dgt_por_matricula
 from .catastro_client import consultar_catastro_por_direccion
 
 logger = logging.getLogger(__name__)
