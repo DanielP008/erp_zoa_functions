@@ -8,7 +8,7 @@ import os
 from typing import Dict, Any
 
 from .merlin_client import MerlinClient, get_vehicle_info_by_matricula, get_town_by_cp
-from .catastro_client import consultar_catastro_por_direccion
+from catastro_client import consultar_catastro_por_direccion
 
 logger = logging.getLogger(__name__)
 

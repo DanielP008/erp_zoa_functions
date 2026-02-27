@@ -11,7 +11,7 @@ import logging
 from langchain.tools import tool
 from Merlin.merlin_client import create_merlin_project, get_vehicle_info_by_matricula, get_town_by_cp
 from ebroker_functions import get_all_policys_by_client_risk
-from Merlin.catastro_client import consultar_catastro_por_direccion
+from catastro_client import consultar_catastro_por_direccion
 
 logger = logging.getLogger(__name__)
 

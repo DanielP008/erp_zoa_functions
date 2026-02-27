@@ -8,7 +8,8 @@ Endpoint usado: Consulta_DNPLOC (HTTP GET, sin autenticación, XML response).
 """
 
 import logging
-import requests
+import time
+from curl_cffi import requests
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional
 
