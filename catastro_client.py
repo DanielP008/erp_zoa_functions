@@ -212,7 +212,7 @@ def _query_catastro_by_reference(
     logger.info(f"[CATASTRO] Querying by reference: {referencia} in {municipio} ({provincia})")
 
     try:
-        resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT)
+        resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT, impersonate="chrome120")
         resp.raise_for_status()
     except requests.exceptions.RequestException as exc:
         logger.error(f"[CATASTRO] Reference query failed: {exc}")
@@ -324,12 +324,28 @@ def _try_catastro_address(
                 f"{params['Sigla']} {params['Calle']} {params['Numero']}"
             )
 
-            try:
-                resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT)
-                resp.raise_for_status()
-            except requests.exceptions.RequestException as exc:
-                logger.error(f"[CATASTRO] Request failed: {exc}")
-                return {"success": False, "error": f"Error consultando el Catastro: {exc}"}
+            # Technical retry loop for network/connection errors
+            max_retries = 2
+            resp = None
+            for attempt in range(max_retries + 1):
+                try:
+                    resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT, impersonate="chrome120")
+                    resp.raise_for_status()
+                    break # Success, exit retry loop
+                except Exception as exc:
+                    if attempt < max_retries:
+                        wait_time = 1.5 * (attempt + 1)
+                        logger.warning(f"[CATASTRO] Connection attempt {attempt + 1} failed: {exc}. Retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                    else:
+                        logger.error(f"[CATASTRO] All {max_retries + 1} attempts failed for variant '{variant}': {exc}")
+                        # If it's a persistent connection error, we might want to return early
+                        if "Connection" in str(exc) or "RemoteDisconnected" in str(exc):
+                             return {"success": False, "error": f"Error de conexión persistente con el Catastro: {exc}"}
+                        continue # Try next street/muni variant
+
+            if not resp:
+                continue
 
             last_result = _parse_catastro_response(resp.text)
 

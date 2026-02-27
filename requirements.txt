@@ -6,3 +6,4 @@ google-auth
 requests
 flask
 python-dotenv
+curl_cffi>=0.7.0
