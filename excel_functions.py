@@ -6,10 +6,12 @@ class GoogleSheetsClient:
     """
     Client for interacting with Google Sheets.
     """
-    def __init__(self, spreadsheet_url):
+    def __init__(self, spreadsheet_url=None, spreadsheet_renovaciones_url=None):
         self.spreadsheet_url = spreadsheet_url
+        self.spreadsheet_renovaciones_url = spreadsheet_renovaciones_url
         self.client = None
         self.spreadsheet = None
+        self.spreadsheet_renovaciones = None
 
     def login(self):
         """
@@ -26,7 +28,12 @@ class GoogleSheetsClient:
             # Authenticate using default credentials
             credentials, project_id = default(scopes=scopes)
             self.client = gspread.authorize(credentials)
-            self.spreadsheet = self.client.open_by_url(self.spreadsheet_url)
+            
+            if self.spreadsheet_url:
+                self.spreadsheet = self.client.open_by_url(self.spreadsheet_url)
+            if self.spreadsheet_renovaciones_url:
+                self.spreadsheet_renovaciones = self.client.open_by_url(self.spreadsheet_renovaciones_url)
+                
             return True
         except Exception as e:
             raise Exception(f"Login failed: {e}")
@@ -115,11 +122,11 @@ class GoogleSheetsClient:
     def process_load_renewals(self, company_id: str, start_date=None, frequency: int = 7, 
                               percent_threshold: float = 8.0, 
                               amount_threshold: float = 0.0):
-        if not self.spreadsheet:
-            raise Exception("Spreadsheet not opened. Call login() first.")
+        if hasattr(self, 'spreadsheet_renovaciones') and not self.spreadsheet_renovaciones:
+            raise Exception("Spreadsheet renovaciones not opened. Ensure url_renovaciones is configured and call login().")
         
         try:
-            worksheet = self.spreadsheet.get_worksheet(0)
+            worksheet = self.spreadsheet_renovaciones.get_worksheet(0)
             rows = worksheet.get_all_values()
         except Exception:
             return []
@@ -216,20 +223,20 @@ def get_erp_client(data):
     if not isinstance(erp_config, dict):
         raise ValueError(f"erp_config must be a dictionary, got {type(erp_config).__name__}")
 
-    # Try common keys for the spreadsheet URL
+    # Try common keys for the spreadsheet URLs
     spreadsheet_url = erp_config.get('url')
+    spreadsheet_renovaciones_url = erp_config.get('url_renovaciones')
 
-    if not spreadsheet_url:
-        raise ValueError("Spreadsheet URL not found in erp configuration (checked 'url')")
+    if not spreadsheet_url and not spreadsheet_renovaciones_url:
+        raise ValueError("Spreadsheet URL not found in erp configuration (checked 'url' and 'url_renovaciones')")
     
-    spreadsheet_url = str(spreadsheet_url).strip()
-    if not spreadsheet_url.startswith('https://'):
-        raise ValueError(f"Invalid Google Sheet URL (must start with https://): {spreadsheet_url}")
-
     # Normalize URL: strip trailing /edit, #gid, etc. to get the base spreadsheet URL
-    if '/edit' in spreadsheet_url:
+    if spreadsheet_url and '/edit' in spreadsheet_url:
         spreadsheet_url = spreadsheet_url.split('/edit')[0]
 
-    client = GoogleSheetsClient(spreadsheet_url=spreadsheet_url)
+    if spreadsheet_renovaciones_url and '/edit' in spreadsheet_renovaciones_url:
+        spreadsheet_renovaciones_url = spreadsheet_renovaciones_url.split('/edit')[0]
+
+    client = GoogleSheetsClient(spreadsheet_url=spreadsheet_url, spreadsheet_renovaciones_url=spreadsheet_renovaciones_url)
     client.login()
     return client
