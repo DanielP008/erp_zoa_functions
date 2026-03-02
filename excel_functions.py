@@ -112,6 +112,101 @@ class GoogleSheetsClient:
         """Placeholder for getting claims from Excel."""
         return {"message": "Method not yet implemented for Excel", "nif": nif}
 
+    def process_load_renewals(self, company_id: str, start_date=None, frequency: int = 7, 
+                              percent_threshold: float = 8.0, 
+                              amount_threshold: float = 0.0):
+        if not self.spreadsheet:
+            raise Exception("Spreadsheet not opened. Call login() first.")
+        
+        try:
+            worksheet = self.spreadsheet.get_worksheet(0)
+            rows = worksheet.get_all_values()
+        except Exception:
+            return []
+
+        if not rows or len(rows) < 2:
+            return []
+            
+        result_list = []
+        
+        for row in rows[1:]:
+            if len(row) < 19:
+                continue
+                
+            policy_num = str(row[0]).strip()
+            if not policy_num:
+                continue
+                
+            nif = str(row[7]).strip()
+            phone = str(row[11]).strip()
+            
+            p_actual_str = str(row[17]).replace('.', '').replace(',', '.').strip()
+            p_anterior_str = str(row[18]).replace('.', '').replace(',', '.').strip()
+
+            try:
+                p_premium = float(p_actual_str) if p_actual_str else 0.0
+                c_premium = float(p_anterior_str) if p_anterior_str else 0.0
+            except ValueError:
+                continue
+                
+            if p_premium > 0 and c_premium > 0:
+                diff = p_premium - c_premium
+                percent_diff = (diff / c_premium) * 100 if c_premium > 0 else 0
+                
+                is_flagged = percent_diff >= percent_threshold
+                if amount_threshold > 0:
+                    is_flagged = is_flagged or (diff >= amount_threshold)
+                    
+                if is_flagged:
+                    title = f"Renovación tipo A {policy_num}"
+                    tag = f">{int(percent_threshold)}%"
+                else:
+                    title = f"Renovación tipo B {policy_num}"
+                    tag = f"<{int(percent_threshold)}%"
+                    
+                client_phone = phone.replace('+', '').replace(' ', '')
+                if len(client_phone) == 9:
+                    client_phone = "34" + client_phone
+                    
+                card_payload = {
+                    "company_id": company_id,
+                    "action": "cards",
+                    "option": "create",
+                    "title": title,
+                    "phone": client_phone,
+                    "card_type": "opportunity",
+                    "pipeline_name": "Renovaciones",
+                    "stage_name": "Nuevo",
+                    "amount": p_premium,
+                    "tags_name": tag
+                }
+                
+                try:
+                    import zoa_functions
+                    zoa_functions.create_card(card_payload)
+                except Exception:
+                    pass
+                    
+                result_list.append({
+                    "policy_number": policy_num,
+                    "client_nif": nif,
+                    "p_receipt": {
+                        "id": f"P_{policy_num}",
+                        "amount": p_premium,
+                        "status": "PENDIENTE/DVTO.BANCO"
+                    },
+                    "c_receipt": {
+                        "id": f"C_{policy_num}",
+                        "amount": c_premium,
+                        "status": "COBRADO"
+                    },
+                    "percent_diff": round(percent_diff, 2),
+                    "amount_diff": round(diff, 2),
+                    "is_flagged": is_flagged
+                })
+                
+        return result_list
+
 
 def get_erp_client(data):
     """
