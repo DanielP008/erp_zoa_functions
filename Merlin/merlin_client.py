@@ -721,30 +721,42 @@ class MerlinClient:
             mongo_id = result.get("id")
             id_pasarela = result.get("id_proyecto_en_pasarela")
 
-            # Hogar: fetch recommended capitals from insurers, then save datos_adicionales
+            # Hogar: fetch recommended capitals from insurers
+            # If capitals are NOT provided in input, return recommendations for user selection.
+            # If capitals ARE provided, save them and proceed to tarification.
             if ramo == "HOGAR" and id_pasarela and mongo_id:
                 dgs_list = list({a["dgs"] for a in aseguradoras.values()})
-                try:
-                    cap_resp = self.solicitar_capitales_recomendados(mongo_id, dgs_list)
-                    cap_process_id = cap_resp.get("idProcesoPasarela") or cap_resp.get("id_proceso_pasarela", "")
-                    if isinstance(cap_process_id, dict):
-                        cap_process_id = cap_process_id.get("idPasarela2", "")
+                
+                # Check if capitals are missing (or zero/default)
+                has_continente = datos.get("capital_continente") and int(datos.get("capital_continente")) > 0
+                has_contenido = datos.get("capital_contenido") and int(datos.get("capital_contenido")) > 0
+                
+                if not has_continente or not has_contenido:
+                    logger.info("[MERLIN] Capitals missing in payload. Fetching recommendations for user selection...")
+                    try:
+                        cap_resp = self.solicitar_capitales_recomendados(mongo_id, dgs_list)
+                        cap_process_id = cap_resp.get("idProcesoPasarela") or cap_resp.get("id_proceso_pasarela", "")
+                        if isinstance(cap_process_id, dict):
+                            cap_process_id = cap_process_id.get("idPasarela2", "")
 
-                    if cap_process_id:
-                        capitales_list = self._poll_capitales_recomendados(str(cap_process_id))
-                        if capitales_list:
-                            selected = self._select_capitals_from_recommendations(capitales_list)
-                            datos["capital_continente"] = selected["continente"]
-                            datos["capital_contenido"] = selected["contenido"]
-                            logger.info(
-                                f"[MERLIN] Using insurer-recommended capitals: "
-                                f"continente={selected['continente']}, contenido={selected['contenido']}"
-                            )
-                    else:
-                        logger.warning("[MERLIN] No process ID for capitals request")
-                except Exception as exc:
-                    logger.warning(f"[MERLIN] Recommended capitals fetch failed, using payload values: {exc}")
-
+                        if cap_process_id:
+                            capitales_list = self._poll_capitales_recomendados(str(cap_process_id))
+                            if capitales_list:
+                                # Return immediately so the agent can ask the user
+                                return {
+                                    "success": True,
+                                    "action_required": "select_capitals",
+                                    "mensaje": "Se requieren seleccionar los capitales de continente y contenido.",
+                                    "proyecto_id": mongo_id,
+                                    "capitales_recomendados": capitales_list
+                                }
+                    except Exception as exc:
+                        logger.warning(f"[MERLIN] Recommended capitals fetch failed: {exc}")
+                        # If fetch fails, we might want to return an error or proceed with defaults.
+                        # For now, let's error so the agent knows something went wrong with recommendations.
+                        return {"success": False, "error": f"No se pudieron obtener recomendaciones de capitales: {exc}"}
+                
+                # If we are here, capitals ARE provided. Save them.
                 try:
                     self.guardar_datos_adicionales_hogar(id_pasarela, datos)
                     logger.info("[MERLIN] Hogar additional data saved successfully.")

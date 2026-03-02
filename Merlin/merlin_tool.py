@@ -8,7 +8,7 @@ import os
 from typing import Dict, Any
 
 from .merlin_client import MerlinClient, get_vehicle_info_by_matricula, get_town_by_cp
-from catastro_client import consultar_catastro_por_direccion
+from .catastro_client import consultar_catastro_por_direccion
 
 logger = logging.getLogger(__name__)
 
@@ -158,11 +158,9 @@ def create_retarificacion_merlin_project_tool(payload: dict, context: dict = Non
 
             # Capitals: recommended values are fetched from Merlin after project
             # creation (inside merlin_client.crear_proyecto_completo).
-            # Provide minimal defaults so the initial save succeeds.
-            if "capital_continente" not in payload:
-                payload["capital_continente"] = 100000
-            if "capital_contenido" not in payload:
-                payload["capital_contenido"] = 25000
+            # We do NOT inject defaults here anymore, so the client can detect missing capitals
+            # and return recommendations for the user to choose.
+            pass
 
         # 4. Create project using the original Merlin client
         from .merlin_client import create_merlin_project
