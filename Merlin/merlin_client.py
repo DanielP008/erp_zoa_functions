@@ -445,6 +445,90 @@ class MerlinClient:
             json=datos_adicionales,
         )
 
+    def solicitar_capitales_recomendados(self, id_proyecto: str, dgs_companias: List[str]) -> Dict[str, Any]:
+        """Request recommended capitals from all insurers for a HOGAR project.
+
+        GET /capitales-recomendados?idProyecto={id}&dgsCompanias={csv}
+        Returns a small response with the process ID for polling.
+        """
+        dgs_csv = ",".join(dgs_companias)
+        logger.info(f"[MERLIN] Requesting recommended capitals for project {id_proyecto} with {len(dgs_companias)} companies")
+        return self._request(
+            "GET", "/capitales-recomendados", "merlin_capitales_recomendados",
+            params={"idProyecto": id_proyecto, "dgsCompanias": dgs_csv},
+        )
+
+    def consultar_estado_capitales(self, id_proceso_pasarela: str, subramo: str = "HOGAR") -> Dict[str, Any]:
+        """Poll recommended capitals status.
+
+        GET /capitales-recomendados/estado?idProcesoPasarela={id}&subramo={subramo}
+        Returns {terminado: bool, capitales: [{dgs, continente?, contenido?, ...}]}
+        """
+        return self._request(
+            "GET", "/capitales-recomendados/estado", "merlin_capitales_estado",
+            params={"idProcesoPasarela": id_proceso_pasarela, "subramo": subramo},
+        )
+
+    def _poll_capitales_recomendados(
+        self,
+        id_proceso_pasarela: str,
+        subramo: str = "HOGAR",
+        max_wait: int = 30,
+        interval: int = 3,
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Poll capitales-recomendados/estado until finished or timeout.
+
+        Returns the list of capital recommendations, or None on failure.
+        """
+        elapsed = 0
+        while elapsed < max_wait:
+            time.sleep(interval)
+            elapsed += interval
+            try:
+                resp = self.consultar_estado_capitales(id_proceso_pasarela, subramo)
+                terminado = resp.get("terminado", False)
+                capitales = resp.get("capitales", [])
+                logger.info(
+                    f"[MERLIN] Capitals poll ({elapsed}s): terminado={terminado}, "
+                    f"{len(capitales)} entries"
+                )
+                if terminado:
+                    return capitales
+            except Exception as exc:
+                logger.warning(f"[MERLIN] Capitals poll error ({elapsed}s): {exc}")
+        logger.warning(f"[MERLIN] Capitals poll timed out after {max_wait}s")
+        return None
+
+    @staticmethod
+    def _select_capitals_from_recommendations(capitales: List[Dict[str, Any]]) -> Dict[str, int]:
+        """Pick continente and contenido from insurer recommendations using the median."""
+        continentes = []
+        contenidos = []
+        for c in capitales:
+            if "continente" in c and c["continente"]:
+                continentes.append(float(c["continente"]))
+            if "contenido" in c and c["contenido"]:
+                contenidos.append(float(c["contenido"]))
+
+        def _median(values: list) -> float:
+            if not values:
+                return 0
+            s = sorted(values)
+            n = len(s)
+            mid = n // 2
+            if n % 2 == 0:
+                return (s[mid - 1] + s[mid]) / 2
+            return s[mid]
+
+        cont = int(_median(continentes)) if continentes else 100000
+        cntd = int(_median(contenidos)) if contenidos else 25000
+        logger.info(
+            f"[MERLIN] Selected capitals from {len(continentes)} continente / "
+            f"{len(contenidos)} contenido recommendations: "
+            f"continente={cont}, contenido={cntd}"
+        )
+        return {"continente": cont, "contenido": cntd}
+
     def iniciar_tarificacion(self, id_pasarela: str) -> Dict[str, Any]:
         """Launch the multi-insurer tarification process for a saved project.
 
@@ -637,8 +721,30 @@ class MerlinClient:
             mongo_id = result.get("id")
             id_pasarela = result.get("id_proyecto_en_pasarela")
 
-            # Hogar requires a second call for capitals and questionnaire
-            if ramo == "HOGAR" and id_pasarela:
+            # Hogar: fetch recommended capitals from insurers, then save datos_adicionales
+            if ramo == "HOGAR" and id_pasarela and mongo_id:
+                dgs_list = list({a["dgs"] for a in aseguradoras.values()})
+                try:
+                    cap_resp = self.solicitar_capitales_recomendados(mongo_id, dgs_list)
+                    cap_process_id = cap_resp.get("idProcesoPasarela") or cap_resp.get("id_proceso_pasarela", "")
+                    if isinstance(cap_process_id, dict):
+                        cap_process_id = cap_process_id.get("idPasarela2", "")
+
+                    if cap_process_id:
+                        capitales_list = self._poll_capitales_recomendados(str(cap_process_id))
+                        if capitales_list:
+                            selected = self._select_capitals_from_recommendations(capitales_list)
+                            datos["capital_continente"] = selected["continente"]
+                            datos["capital_contenido"] = selected["contenido"]
+                            logger.info(
+                                f"[MERLIN] Using insurer-recommended capitals: "
+                                f"continente={selected['continente']}, contenido={selected['contenido']}"
+                            )
+                    else:
+                        logger.warning("[MERLIN] No process ID for capitals request")
+                except Exception as exc:
+                    logger.warning(f"[MERLIN] Recommended capitals fetch failed, using payload values: {exc}")
+
                 try:
                     self.guardar_datos_adicionales_hogar(id_pasarela, datos)
                     logger.info("[MERLIN] Hogar additional data saved successfully.")
