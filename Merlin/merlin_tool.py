@@ -7,7 +7,7 @@ import json
 import os
 from typing import Dict, Any
 
-from .merlin_client import MerlinClient, get_vehicle_info_by_matricula, get_town_by_cp
+from .merlin_client import MerlinClient, get_vehicle_info_by_matricula, get_town_by_cp, finalize_hogar_project
 from catastro_client import consultar_catastro_por_direccion
 
 logger = logging.getLogger(__name__)
@@ -169,4 +169,16 @@ def create_retarificacion_merlin_project_tool(payload: dict, context: dict = Non
         
     except Exception as exc:
         logger.exception("[MERLIN_TOOL] Error in create_retarificacion_merlin_project_tool")
+        return json.dumps({"success": False, "error": str(exc)}, ensure_ascii=False)
+
+
+def finalizar_proyecto_hogar_merlin_tool(payload: dict, context: dict = None) -> str:
+    """Finalize a HOGAR project with chosen capitals and launch tarification."""
+    logger.info("[MERLIN_TOOL] Finalizing HOGAR project with chosen capitals...")
+    try:
+        cfg = _extract_tarificador_config(context)
+        result = finalize_hogar_project(payload, {"tarificador": cfg})
+        return json.dumps(result, ensure_ascii=False)
+    except Exception as exc:
+        logger.exception("[MERLIN_TOOL] Error in finalizar_proyecto_hogar_merlin_tool")
         return json.dumps({"success": False, "error": str(exc)}, ensure_ascii=False)

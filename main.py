@@ -10,7 +10,8 @@ from Merlin.merlin_tool import (
     consulta_vehiculo_merlin_tool,
     get_town_by_cp_merlin_tool,
     consultar_catastro_merlin_tool,
-    create_retarificacion_merlin_project_tool
+    create_retarificacion_merlin_project_tool,
+    finalizar_proyecto_hogar_merlin_tool,
 )
 from Avant2.avant2_tool import (
     consulta_vehiculo_avant2_tool, 
@@ -73,9 +74,11 @@ def main(request):
     if is_tarificador_op:
         try:
             company_config = database_functions.get_company_config(company_id)
-        except Exception:
-            company_config = {}
-        if not isinstance(company_config, dict) or "error" in (company_config or {}):
+            if not company_config:
+                print(f"[MAIN] WARNING: No config found in Firebase for company_id: {company_id}")
+                company_config = {}
+        except Exception as e:
+            print(f"[MAIN] ERROR: Database lookup failed for company_id {company_id}: {e}")
             company_config = {}
     else:
         company_config = database_functions.get_company_config(company_id)
@@ -326,6 +329,10 @@ def main(request):
         # Determine active tarificador provider from config
         tarificador_config = request_json.get('tarificador_config', {})
         provider = str(erp_config.get("tarificador", "")).lower().strip()
+        if not provider and option and option.startswith("merlin_"):
+            provider = "merlin"
+        elif not provider and option and option.startswith("avant2_"):
+            provider = "avant2"
 
         if option in ('merlin_consulta_vehiculo', 'tarificador_consulta_vehiculo'):
             # Input: {"option": "tarificador_consulta_vehiculo", "matricula": "1234ABC"}
@@ -417,6 +424,20 @@ def main(request):
                 )
             
             return result
+
+        if option in ('merlin_finalizar_proyecto_hogar', 'tarificador_finalizar_proyecto_hogar'):
+            payload = request_json.copy()
+            payload.pop('company_id', None)
+            payload.pop('option', None)
+
+            if provider == "avant2":
+                return {"error": "Avant2 no soporta finalizar_proyecto_hogar todavía."}, 400
+
+            try:
+                json_str_result = finalizar_proyecto_hogar_merlin_tool(payload, {"tarificador": tarificador_config})
+                return json.loads(json_str_result)
+            except Exception as e:
+                return {"success": False, "error": f"Merlin finalize failed: {str(e)}"}
 
         if option in ('merlin_create_project', 'tarificador_create_project'):
             if provider not in ("merlin", "avant2"):
