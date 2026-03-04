@@ -153,6 +153,11 @@ class EBrokerClient:
                     'phones': get_phones(company_name)
                 })
         return polizas_ramo
+    
+    def get_policies_by_renewal_date(self,renewal_date: str) -> List[Dict]:
+        return self._make_request("business", "GET", f"/v1/policies?query=customer.managementUser.username:MARIAJESUS&size=20&query=status.id:V&query=renewalDate:{renewal_date}")
+    def get_policies_by_effect_date(self,effect_date: str) -> List[Dict]:
+        return self._make_request("business", "GET", f"/v1/policies?query=customer.managementUser.username:MARIAJESUS&size=20&query=status.id:V&query=effectDate:{effect_date}")
 
     def get_all_policys_by_client_risk(self, nif: str, risk: str, company_id: str=None) -> List[Dict]:
         polizas = self.get_customer_policies(nif)

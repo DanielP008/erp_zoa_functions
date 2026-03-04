@@ -319,6 +319,11 @@ def main(request):
                 amount_threshold=amount_threshold
             )
 
+        if option == 'get_policies_by_renewal_date':
+            return client.get_policies_by_renewal_date(renewal_date)
+        
+        if option == 'get_policies_by_effect_date':
+            return client.get_policies_by_effect_date(effect_date)
 
 
 
