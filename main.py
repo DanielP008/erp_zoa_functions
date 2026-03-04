@@ -65,6 +65,8 @@ def main(request):
     notes = request_json.get('notes', '')
     start_date = request_json.get('start_date')
     end_date = request_json.get('end_date')
+    renewal_date = request_json.get('renewal_date')
+    effect_date = request_json.get('effect_date')
 
 
 
