@@ -9,7 +9,7 @@ Endpoint usado: Consulta_DNPLOC (HTTP GET, sin autenticación, XML response).
 
 import logging
 import time
-from curl_cffi import requests
+import requests
 import xml.etree.ElementTree as ET
 from typing import Dict, Any, Optional
 
@@ -19,6 +19,13 @@ CATASTRO_BASE_URL = (
     "https://ovc.catastro.meh.es/ovcservweb/ovcswlocalizacionrc/ovccallejero.asmx"
 )
 CATASTRO_TIMEOUT = 15
+
+# Standard headers to look like a browser without using curl_cffi
+CATASTRO_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+    "Accept-Language": "es-ES,es;q=0.9",
+}
 
 
 def _generate_street_name_variants(nombre_via: str) -> list:
@@ -212,7 +219,7 @@ def _query_catastro_by_reference(
     logger.info(f"[CATASTRO] Querying by reference: {referencia} in {municipio} ({provincia})")
 
     try:
-        resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT, impersonate="chrome120")
+        resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT, headers=CATASTRO_HEADERS)
         resp.raise_for_status()
     except requests.exceptions.RequestException as exc:
         logger.error(f"[CATASTRO] Reference query failed: {exc}")
@@ -329,7 +336,7 @@ def _try_catastro_address(
             resp = None
             for attempt in range(max_retries + 1):
                 try:
-                    resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT, impersonate="chrome120")
+                    resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT, headers=CATASTRO_HEADERS)
                     resp.raise_for_status()
                     break # Success, exit retry loop
                 except Exception as exc:
@@ -340,7 +347,7 @@ def _try_catastro_address(
                     else:
                         logger.error(f"[CATASTRO] All {max_retries + 1} attempts failed for variant '{variant}': {exc}")
                         # If it's a persistent connection error, we might want to return early
-                        if "Connection" in str(exc) or "RemoteDisconnected" in str(exc):
+                        if "Connection" in str(exc) or "RemoteDisconnected" in str(exc) or "reset by peer" in str(exc):
                              return {"success": False, "error": f"Error de conexión persistente con el Catastro: {exc}"}
                         continue # Try next street/muni variant
 

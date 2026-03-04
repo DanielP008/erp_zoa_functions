@@ -7,7 +7,7 @@ import json
 import os
 from typing import Dict, Any
 
-from .merlin_client import MerlinClient, get_vehicle_info_by_matricula, get_town_by_cp
+from .merlin_client import MerlinClient, get_vehicle_info_by_matricula, get_town_by_cp, finalize_hogar_project
 from catastro_client import consultar_catastro_por_direccion
 
 logger = logging.getLogger(__name__)
@@ -156,63 +156,11 @@ def create_retarificacion_merlin_project_tool(payload: dict, context: dict = Non
             for k, v in defaults.items():
                 if k not in payload: payload[k] = v
 
-            # Calcular capitales continente y contenido
-            if "capital_continente" not in payload or "capital_contenido" not in payload:
-                superficie = payload.get("superficie_vivienda", 90)
-                tipo_vivienda = payload.get("tipo_vivienda", "PISO_EN_ALTO")
-                
-                factores = {
-                    "PISO_EN_ALTO": 1.0,
-                    "ATICO": 1.0,
-                    "PISO_EN_BAJO": 1.1,
-                    "CHALET_O_VIVIENDA_ADOSADA": 1.2,
-                    "CHALET_O_VIVIENDA_UNIFAMILIAR": 1.4
-                }
-                factores_contenido = {
-                    "PISO_EN_ALTO": 250,
-                    "ATICO": 350,
-                    "PISO_EN_BAJO": 250,
-                    "CHALET_O_VIVIENDA_ADOSADA": 350,
-                    "CHALET_O_VIVIENDA_UNIFAMILIAR": 450
-                }
-                
-                factor_tipologia = factores.get(tipo_vivienda, 1.0)
-                precio_m2_contenido = factores_contenido.get(tipo_vivienda, 250)
-                
-                capital_continente = 0
-                capital_contenido = 25000
-                precio_m2_base = 1500
-                
-                if str(superficie).isdigit():
-                    try:
-                        json_path = os.path.join(os.path.dirname(__file__), "precios_m2.json")
-                        if os.path.exists(json_path):
-                            with open(json_path, "r", encoding="utf-8") as f:
-                                precios = json.load(f)
-                            
-                            mun_upper = str(payload.get("poblacion", "")).strip().upper()
-                            prov_upper = str(payload.get("descripcion_provincia", "")).strip().upper()
-                            
-                            if mun_upper in precios:
-                                precio_m2_base = precios[mun_upper]
-                            elif prov_upper in precios:
-                                precio_m2_base = precios[prov_upper]
-                            else:
-                                precio_m2_base = precios.get("DEFAULT", 1500)
-                                
-                        precio_final_m2 = float(precio_m2_base) * factor_tipologia
-                        capital_continente = int(superficie) * int(precio_final_m2)
-                        capital_contenido = int(superficie) * precio_m2_contenido
-                    except Exception as e:
-                        logger.error(f"[MERLIN_TOOL] Error calculating capitales: {e}")
-                        capital_continente = int(superficie) * 1500
-                        capital_contenido = 25000
-                else:
-                    capital_continente = 90 * 1500
-                    capital_contenido = 25000
-                    
-                if "capital_continente" not in payload: payload["capital_continente"] = capital_continente
-                if "capital_contenido" not in payload: payload["capital_contenido"] = capital_contenido
+            # Capitals: recommended values are fetched from Merlin after project
+            # creation (inside merlin_client.crear_proyecto_completo).
+            # We do NOT inject defaults here anymore, so the client can detect missing capitals
+            # and return recommendations for the user to choose.
+            pass
 
         # 4. Create project using the original Merlin client
         from .merlin_client import create_merlin_project
@@ -221,4 +169,16 @@ def create_retarificacion_merlin_project_tool(payload: dict, context: dict = Non
         
     except Exception as exc:
         logger.exception("[MERLIN_TOOL] Error in create_retarificacion_merlin_project_tool")
+        return json.dumps({"success": False, "error": str(exc)}, ensure_ascii=False)
+
+
+def finalizar_proyecto_hogar_merlin_tool(payload: dict, context: dict = None) -> str:
+    """Finalize a HOGAR project with chosen capitals and launch tarification."""
+    logger.info("[MERLIN_TOOL] Finalizing HOGAR project with chosen capitals...")
+    try:
+        cfg = _extract_tarificador_config(context)
+        result = finalize_hogar_project(payload, {"tarificador": cfg})
+        return json.dumps(result, ensure_ascii=False)
+    except Exception as exc:
+        logger.exception("[MERLIN_TOOL] Error in finalizar_proyecto_hogar_merlin_tool")
         return json.dumps({"success": False, "error": str(exc)}, ensure_ascii=False)
