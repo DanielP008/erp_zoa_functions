@@ -65,6 +65,8 @@ def main(request):
     notes = request_json.get('notes', '')
     start_date = request_json.get('start_date')
     end_date = request_json.get('end_date')
+    renewal_date = request_json.get('renewal_date')
+    effect_date = request_json.get('effect_date')
 
 
 
@@ -322,6 +324,11 @@ def main(request):
                 amount_threshold=amount_threshold
             )
 
+        if option == 'get_policies_by_renewal_date':
+            return client.get_policies_by_renewal_date(renewal_date)
+        
+        if option == 'get_policies_by_effect_date':
+            return client.get_policies_by_effect_date(effect_date)
 
 
 
