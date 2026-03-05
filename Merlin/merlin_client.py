@@ -526,7 +526,7 @@ class MerlinClient:
         self,
         id_proceso_pasarela: str,
         subramo: str = "HOGAR",
-        max_wait: int = 20,
+        max_wait: int = 60,
         interval: int = 2,
     ) -> Optional[List[Dict[str, Any]]]:
         """Poll capitales-recomendados/estado until finished or timeout.
@@ -645,7 +645,7 @@ class MerlinClient:
         process_id: str,
         mongo_id: str,
         subramo: str,
-        max_wait: int = 60,
+        max_wait: int = 70,
         interval: int = 5,
     ) -> bool:
         """Poll tarificacion/estado until finished or timeout.
@@ -940,7 +940,7 @@ class MerlinClient:
             if not mongo_id or not id_pasarela:
                 return {"success": False, "error": "proyecto_id and id_pasarela are required"}
 
-            max_wait_polling = int(datos.get("max_wait_polling", 30))
+            max_wait_polling = int(datos.get("max_wait_polling", 70))
 
             self.guardar_datos_adicionales_hogar(str(id_pasarela), datos)
             logger.info("[MERLIN] Hogar additional data (capitals) saved successfully.")
