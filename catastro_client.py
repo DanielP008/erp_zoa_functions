@@ -22,9 +22,10 @@ CATASTRO_TIMEOUT = 15
 
 # Standard headers to look like a browser without using curl_cffi
 CATASTRO_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-    "Accept-Language": "es-ES,es;q=0.9",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "application/xml, text/xml, */*",
+    "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+    "Connection": "close",
 }
 
 
@@ -336,12 +337,15 @@ def _try_catastro_address(
             resp = None
             for attempt in range(max_retries + 1):
                 try:
-                    resp = requests.get(url, params=params, timeout=CATASTRO_TIMEOUT, headers=CATASTRO_HEADERS)
-                    resp.raise_for_status()
+                    # Use a session to potentially reuse connections and avoid RemoteDisconnected
+                    with requests.Session() as session:
+                        session.headers.update(CATASTRO_HEADERS)
+                        resp = session.get(CATASTRO_BASE_URL, params=params, timeout=CATASTRO_TIMEOUT)
+                        resp.raise_for_status()
                     break # Success, exit retry loop
                 except Exception as exc:
                     if attempt < max_retries:
-                        wait_time = 1.5 * (attempt + 1)
+                        wait_time = 2.0 * (attempt + 1)
                         logger.warning(f"[CATASTRO] Connection attempt {attempt + 1} failed: {exc}. Retrying in {wait_time}s...")
                         time.sleep(wait_time)
                     else:
