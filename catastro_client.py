@@ -337,10 +337,9 @@ def _try_catastro_address(
             resp = None
             for attempt in range(max_retries + 1):
                 try:
-                    # Use a session to potentially reuse connections and avoid RemoteDisconnected
                     with requests.Session() as session:
                         session.headers.update(CATASTRO_HEADERS)
-                        resp = session.get(CATASTRO_BASE_URL, params=params, timeout=CATASTRO_TIMEOUT)
+                        resp = session.get(url, params=params, timeout=CATASTRO_TIMEOUT)
                         resp.raise_for_status()
                     break # Success, exit retry loop
                 except Exception as exc:
