@@ -645,7 +645,7 @@ class MerlinClient:
         process_id: str,
         mongo_id: str,
         subramo: str,
-        max_wait: int = 70,
+        max_wait: int = 100,
         interval: int = 5,
     ) -> bool:
         """Poll tarificacion/estado until finished or timeout.
@@ -760,7 +760,7 @@ class MerlinClient:
             self.login()
             ramo = str(datos.get("ramo", "AUTO")).upper()
             subramo = SUBRAMO_AUTO if ramo == "AUTO" else SUBRAMO_HOGAR
-            max_wait_polling = int(datos.get("max_wait_polling", 70))
+            max_wait_polling = int(datos.get("max_wait_polling", 100))
 
             aseguradoras = self.obtener_aseguradoras(subramo)
             if not aseguradoras:
@@ -940,7 +940,7 @@ class MerlinClient:
             if not mongo_id or not id_pasarela:
                 return {"success": False, "error": "proyecto_id and id_pasarela are required"}
 
-            max_wait_polling = int(datos.get("max_wait_polling", 70))
+            max_wait_polling = int(datos.get("max_wait_polling", 100))
 
             self.guardar_datos_adicionales_hogar(str(id_pasarela), datos)
             logger.info("[MERLIN] Hogar additional data (capitals) saved successfully.")
