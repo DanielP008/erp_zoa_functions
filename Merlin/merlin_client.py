@@ -353,34 +353,24 @@ class MerlinClient:
         return self._token
 
     def obtener_aseguradoras(self, subramo: str) -> Dict[str, Any]:
-        print(f"[MERLIN] Fetching insurers for '{subramo}'...")
+        logger.info(f"[MERLIN] Fetching insurers for '{subramo}'...")
         items = self._request("GET", "/aseguradoras", "merlin_aseguradoras", params={"subramo": subramo})
-        print(f"[MERLIN] API returned {len(items)} insurer entries for subramo '{subramo}'")
-        if items:
-            first_keys = list(items[0].keys()) if isinstance(items[0], dict) else "NOT_DICT"
-            print(f"[MERLIN] First item keys: {first_keys}")
+
         aseguradoras: Dict[str, Any] = {}
         for item in items:
             dgs = item.get("dgs", item.get("id", ""))
             nombre = item.get("nombre", "")
-            plantillas = item.get("plantillas", [])
-            activas = [p for p in plantillas if p.get("activa")]
-            logger.info(
-                f"[MERLIN]   Insurer {dgs} ({nombre}): "
-                f"{len(plantillas)} plantillas total, {len(activas)} activas"
-            )
-            for p in activas:
-                pid = p.get("id")
-                pname = p.get("nombre", "")
-                key = f"{dgs}_{pid}"
-                aseguradoras[key] = {
-                    "nombre": nombre,
-                    "dgs": dgs,
-                    "plantilla_id": pid,
-                    "plantilla_nombre": pname,
-                }
-                logger.info(f"[MERLIN]     -> Plantilla activa: {pid} ({pname})")
-        logger.info(f"[MERLIN] Found {len(aseguradoras)} active insurer templates.")
+            for p in item.get("plantillas", []):
+                if p.get("activa"):
+                    pid = p.get("id")
+                    aseguradoras[f"{dgs}_{pid}"] = {
+                        "nombre": nombre,
+                        "dgs": dgs,
+                        "plantilla_id": pid,
+                        "plantilla_nombre": p.get("nombre", ""),
+                    }
+
+        logger.info(f"[MERLIN] Found {len(aseguradoras)} active insurer templates for '{subramo}'.")
         return aseguradoras
 
     def obtener_proyecto_nuevo(self, plantillas_ids: List[str]) -> Dict[str, Any]:
@@ -403,18 +393,10 @@ class MerlinClient:
         )
 
     def guardar_proyecto(self, proyecto: Dict[str, Any]) -> Dict[str, Any]:
-        import json as _json
-        try:
-            payload_str = _json.dumps(proyecto, default=str, ensure_ascii=False)
-            print(f"[MERLIN] guardar_proyecto FULL PAYLOAD ({len(payload_str)} chars):")
-            for i in range(0, min(len(payload_str), 6000), 500):
-                print(f"  CHUNK[{i}]: {payload_str[i:i+500]}")
-            datos_b = proyecto.get("datosBasicos") or proyecto.get("datos_basicos", {})
-            print(f"[MERLIN] datosBasicos keys: {list(datos_b.keys()) if isinstance(datos_b, dict) else 'NOT_DICT'}")
-        except Exception as e:
-            print(f"[MERLIN] Could not serialize proyecto for logging: {e}")
+        datos_b = proyecto.get("datosBasicos") or proyecto.get("datos_basicos", {})
+        logger.info(f"[MERLIN] Saving project... datosBasicos keys: {list(datos_b.keys()) if isinstance(datos_b, dict) else 'N/A'}")
         result = self._request("PUT", "/proyecto", "merlin_guardar_proyecto", json=proyecto)
-        print(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
+        logger.info(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
         return result
 
     def guardar_datos_adicionales_hogar(self, id_pasarela: str, data: dict) -> Dict[str, Any]:
@@ -466,145 +448,48 @@ class MerlinClient:
         )
 
     def solicitar_capitales_recomendados(self, id_proyecto: str, dgs_companias: List[str]) -> Dict[str, Any]:
-        """Request recommended capitals from all insurers for a HOGAR project.
-
-        GET /capitales-recomendados?idProyecto={id}&dgsCompanias={csv}
-        Returns a small response with the process ID for polling.
-        """
+        """Request recommended capitals from all insurers for a HOGAR project."""
         dgs_csv = ",".join(dgs_companias)
-        print(f"[MERLIN] solicitar_capitales_recomendados: id_proyecto={id_proyecto}, dgs_companias({len(dgs_companias)})={dgs_companias}, dgs_csv='{dgs_csv}'")
-        url = f"{self.base_url}/capitales-recomendados?idProyecto={id_proyecto}&dgsCompanias={dgs_csv}"
-        print(f"[MERLIN] Capitals URL: {url}")
-        try:
-            response = self._session.get(url, timeout=self.timeout)
-            response.raise_for_status()
-            if not response.content:
-                return {}
-            try:
-                return response.json()
-            except ValueError:
-                # If response is not JSON, it might be the ID string directly
-                text = response.text.strip()
-                print(f"[MERLIN] Response not JSON. Assuming raw ID: '{text}'")
-                return {"idProcesoPasarela": text}
-        except requests.exceptions.HTTPError as exc:
-            resp = exc.response
-            body = resp.text[:500] if resp is not None else ""
-            code = resp.status_code if resp is not None else "?"
-            raise MerlinClientError(f"HTTP {code} on merlin_capitales_recomendados: {body}")
-        except requests.exceptions.RequestException as exc:
-            raise MerlinClientError(f"Request error on merlin_capitales_recomendados: {exc}")
+        logger.info(f"[MERLIN] Requesting capitals: project={id_proyecto}, dgs={dgs_csv}")
+        return self._request(
+            "GET", "/capitales-recomendados", "merlin_capitales_recomendados",
+            params={"idProyecto": id_proyecto, "dgsCompanias": dgs_csv},
+        )
 
     def consultar_estado_capitales(self, id_proceso_pasarela: str, subramo: str = "HOGAR") -> Dict[str, Any]:
-        """Poll recommended capitals status.
-
-        GET /capitales-recomendados/estado?idProcesoPasarela={id}&subramo={subramo}
-        Returns {terminado: bool, capitales: [{dgs, continente?, contenido?, ...}]}
-        """
-        url = f"{self.base_url}/capitales-recomendados/estado"
-        try:
-            response = self._session.get(
-                url,
-                params={"idProcesoPasarela": id_proceso_pasarela, "subramo": subramo},
-                timeout=10,
-            )
-            response.raise_for_status()
-            if not response.content:
-                return {}
-            return response.json()
-        except requests.exceptions.Timeout:
-            raise MerlinClientError("Timeout calling merlin_capitales_estado")
-        except requests.exceptions.ConnectionError as exc:
-            raise MerlinClientError(f"Connection error (merlin_capitales_estado): {exc}")
-        except requests.exceptions.HTTPError as exc:
-            resp = exc.response
-            body = resp.text[:300] if resp is not None else ""
-            code = resp.status_code if resp is not None else "?"
-            raise MerlinClientError(f"HTTP {code} on merlin_capitales_estado: {body}")
+        """Poll recommended capitals status."""
+        return self._request(
+            "GET", "/capitales-recomendados/estado", "merlin_capitales_estado",
+            params={"idProcesoPasarela": id_proceso_pasarela, "subramo": subramo},
+        )
 
     def _poll_capitales_recomendados(
-        self,
-        id_proceso_pasarela: str,
-        subramo: str = "HOGAR",
-        max_wait: int = 60,
-        interval: int = 2,
+        self, id_proceso_pasarela: str, subramo: str = "HOGAR",
+        max_wait: int = 60, interval: int = 2,
     ) -> Optional[List[Dict[str, Any]]]:
-        """Poll capitales-recomendados/estado until finished or timeout.
-
-        Returns the list of capital recommendations.
-        """
+        """Poll capitales-recomendados/estado until finished or timeout."""
         start = time.time()
-        attempt = 0
         last_capitales = []
-        
+
         while (time.time() - start) < max_wait:
             time.sleep(interval)
-            attempt += 1
-            wall = round(time.time() - start, 1)
             try:
                 resp = self.consultar_estado_capitales(id_proceso_pasarela, subramo)
-                terminado = resp.get("terminado", False)
                 capitales = resp.get("capitales", [])
                 last_capitales = capitales
-                
-                # Count valid entries (continente > 0)
-                valid_count = sum(1 for c in capitales if (c.get("continente") or 0) > 0)
-                
-                print(
-                    f"[MERLIN] Capitals poll #{attempt} ({wall}s): "
-                    f"terminado={terminado}, entries={len(capitales)}, valid={valid_count}"
-                )
-                
-                # Debug first entry if exists
-                if capitales:
-                    print(f"[MERLIN] Sample entry: {capitales[0]}")
 
-                if terminado:
+                if resp.get("terminado", False):
                     return capitales
-                
-                # Optimization: If we have valid values for most insurers (e.g. > 80%), return early
-                # This prevents waiting for one slow insurer if most are ready
-                if capitales and len(capitales) > 0:
-                    ratio = valid_count / len(capitales)
-                    if ratio >= 0.9 and wall > 5:
-                        print(f"[MERLIN] Early return: {ratio:.0%} valid entries after {wall}s")
-                        return capitales
 
+                valid = sum(1 for c in capitales if (c.get("continente") or 0) > 0)
+                if capitales and valid / len(capitales) >= 0.9 and (time.time() - start) > 5:
+                    logger.info(f"[MERLIN] Capitals early return: {valid}/{len(capitales)} valid.")
+                    return capitales
             except Exception as exc:
-                print(f"[MERLIN] Capitals poll #{attempt} error ({wall}s): {exc}")
-        
-        print(f"[MERLIN] Capitals poll timed out after {round(time.time() - start, 1)}s. Returning {len(last_capitales)} partial entries.")
+                logger.warning(f"[MERLIN] Capitals poll error: {exc}")
+
+        logger.warning(f"[MERLIN] Capitals poll timed out after {round(time.time() - start, 1)}s.")
         return last_capitales
-
-    @staticmethod
-    def _select_capitals_from_recommendations(capitales: List[Dict[str, Any]]) -> Dict[str, int]:
-        """Pick continente and contenido from insurer recommendations using the median."""
-        continentes = []
-        contenidos = []
-        for c in capitales:
-            if "continente" in c and c["continente"]:
-                continentes.append(float(c["continente"]))
-            if "contenido" in c and c["contenido"]:
-                contenidos.append(float(c["contenido"]))
-
-        def _median(values: list) -> float:
-            if not values:
-                return 0
-            s = sorted(values)
-            n = len(s)
-            mid = n // 2
-            if n % 2 == 0:
-                return (s[mid - 1] + s[mid]) / 2
-            return s[mid]
-
-        cont = int(_median(continentes)) if continentes else 100000
-        cntd = int(_median(contenidos)) if contenidos else 25000
-        logger.info(
-            f"[MERLIN] Selected capitals from {len(continentes)} continente / "
-            f"{len(contenidos)} contenido recommendations: "
-            f"continente={cont}, contenido={cntd}"
-        )
-        return {"continente": cont, "contenido": cntd}
 
     def iniciar_tarificacion(self, id_pasarela: str) -> Dict[str, Any]:
         """Launch the multi-insurer tarification process for a saved project.
@@ -641,45 +526,28 @@ class MerlinClient:
         )
 
     def _poll_tarificacion(
-        self,
-        process_id: str,
-        mongo_id: str,
-        subramo: str,
-        max_wait: int = 100,
-        interval: int = 5,
+        self, process_id: str, mongo_id: str, subramo: str,
+        max_wait: int = 100, interval: int = 5,
     ) -> bool:
-        """Poll tarificacion/estado until finished or timeout.
-
-        Each poll saves insurer results into the project document.
-        Returns True if tarification completed, False on timeout/error.
-        """
+        """Poll tarificacion/estado until finished or timeout."""
         start = time.time()
-        attempt = 0
         consecutive_errors = 0
-        max_errors = 3
 
         while (time.time() - start) < max_wait:
             time.sleep(interval)
-            attempt += 1
-            wall = round(time.time() - start, 1)
             try:
-                resp = self.consultar_estado_tarificacion(
-                    process_id, mongo_id, subramo
-                )
-                finished = resp.get("tarificacionFinalizada", False)
-                print(f"[MERLIN] Tarification poll #{attempt} ({wall}s): finished={finished}")
+                resp = self.consultar_estado_tarificacion(process_id, mongo_id, subramo)
                 consecutive_errors = 0
-                if finished:
-                    print("[MERLIN] Tarification completed successfully.")
+                if resp.get("tarificacionFinalizada", False):
+                    logger.info(f"[MERLIN] Tarification completed in {round(time.time() - start, 1)}s.")
                     return True
             except Exception as exc:
                 consecutive_errors += 1
-                print(f"[MERLIN] Tarification poll #{attempt} error ({wall}s, error {consecutive_errors}/{max_errors}): {exc}")
-                if consecutive_errors >= max_errors:
-                    print("[MERLIN] Too many consecutive polling errors. Aborting poll.")
+                logger.warning(f"[MERLIN] Tarification poll error ({consecutive_errors}/3): {exc}")
+                if consecutive_errors >= 3:
                     break
-        total = round(time.time() - start, 1)
-        print(f"[MERLIN] Tarification timed out after {total}s ({attempt} attempts).")
+
+        logger.warning(f"[MERLIN] Tarification timed out after {round(time.time() - start, 1)}s.")
         return False
 
     def _extract_all_offers(self, proyecto: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -754,6 +622,88 @@ class MerlinClient:
         logger.info(f"[MERLIN] Extracted {len(all_offers)} total offers across all insurers")
         return all_offers
 
+    def _tarificar_y_obtener_ofertas(self, mongo_id: str, subramo: str, max_wait: int = 100) -> tuple:
+        """Launch tarification, poll, fetch final project and extract offers.
+        Returns (tarificacion_ok, ofertas, proyecto_final).
+        """
+        tarificacion_ok = False
+        proyecto_final = {}
+        ofertas = []
+
+        try:
+            tar_resp = self.iniciar_tarificacion(mongo_id)
+            process_id = tar_resp.get("id_proceso_pasarela", {}).get("id_pasarela2", "")
+            if process_id:
+                tarificacion_ok = self._poll_tarificacion(process_id, mongo_id, subramo, max_wait=max_wait)
+            else:
+                logger.warning("[MERLIN] No process ID returned from iniciar.")
+        except Exception as exc:
+            logger.warning(f"[MERLIN] Tarification launch failed: {exc}")
+
+        try:
+            proyecto_final = self.obtener_proyecto(mongo_id)
+            ofertas = self._extract_all_offers(proyecto_final)
+            estado = proyecto_final.get("estado", proyecto_final.get("estadoProyecto", ""))
+            if estado == "TARIFICADO" or ofertas:
+                tarificacion_ok = True
+        except Exception as exc:
+            logger.warning(f"[MERLIN] Failed to fetch final project: {exc}")
+
+        return tarificacion_ok, ofertas, proyecto_final
+
+    def _obtener_capitales_recomendados_hogar(
+        self, mongo_id: str, id_pasarela, datos: dict, afinaciones: list
+    ) -> Optional[Dict[str, Any]]:
+        """For HOGAR without capitals: save initial data, fetch insurer recommendations.
+        Returns a response dict if capitals are needed (early return), or None to continue.
+        """
+        def _safe_int(val):
+            try: return int(val) if val is not None else 0
+            except (ValueError, TypeError): return 0
+
+        has_continente = _safe_int(datos.get("capital_continente")) > 0
+        has_contenido = _safe_int(datos.get("capital_contenido")) > 0
+
+        if has_continente and has_contenido:
+            try:
+                self.guardar_datos_adicionales_hogar(id_pasarela, datos)
+            except Exception as exc:
+                logger.warning(f"[MERLIN] Hogar additional data save failed: {exc}")
+            return None
+
+        dgs_list = list({af.get("afinacion", {}).get("dgs", "") for af in afinaciones} - {""})
+        logger.info(f"[MERLIN] Capitals missing. Fetching recommendations from {len(dgs_list)} insurers...")
+
+        capitales_list = []
+        try:
+            self.guardar_datos_adicionales_hogar(id_pasarela, datos)
+            cap_resp = self.solicitar_capitales_recomendados(mongo_id, dgs_list)
+            cap_process_id = cap_resp.get("idProcesoPasarela") or cap_resp.get("id_proceso_pasarela", "")
+            if isinstance(cap_process_id, dict):
+                cap_process_id = cap_process_id.get("idPasarela2", "")
+
+            if cap_process_id:
+                capitales_list = self._poll_capitales_recomendados(str(cap_process_id)) or []
+                dgs_to_name = {
+                    af.get("afinacion", {}).get("dgs", ""): af.get("afinacion", {}).get("nombre", af.get("descripcion_plantilla", ""))
+                    for af in afinaciones
+                }
+                for cap in capitales_list:
+                    cap["nombre_aseguradora"] = dgs_to_name.get(cap.get("dgs", ""), cap.get("dgs", ""))
+        except Exception as exc:
+            logger.warning(f"[MERLIN] Recommended capitals fetch failed: {exc}")
+
+        return {
+            "success": True,
+            "action_required": "select_capitals",
+            "mensaje": "Se requieren seleccionar los capitales de continente y contenido."
+                       if capitales_list else
+                       "No se pudieron obtener recomendaciones de capitales a tiempo. Indica los capitales manualmente.",
+            "proyecto_id": mongo_id,
+            "id_pasarela": id_pasarela,
+            "capitales_recomendados": capitales_list,
+        }
+
     def crear_proyecto_completo(self, datos: dict) -> Dict[str, Any]:
         """Create a complete insurance project in Merlin and launch tarification."""
         try:
@@ -792,117 +742,19 @@ class MerlinClient:
                 proyecto["datos_basicos"] = datos_basicos
 
             result = self.guardar_proyecto(proyecto)
-
             mongo_id = result.get("id")
             id_pasarela = result.get("id_proyecto_en_pasarela")
 
-            # Hogar: fetch recommended capitals from insurers
-            # If capitals are NOT provided in input, return recommendations for user selection.
-            # If capitals ARE provided, save them and proceed to tarification.
             if ramo == "HOGAR" and id_pasarela and mongo_id:
-                afinaciones = proyecto.get("afinaciones", [])
-                dgs_list = list({
-                    af.get("afinacion", {}).get("dgs", "")
-                    for af in afinaciones
-                } - {""})
-                print(f"[MERLIN] HOGAR block: id_pasarela={id_pasarela}, mongo_id={mongo_id}, dgs_list({len(dgs_list)})={dgs_list}")
-                
-                def _safe_int(val):
-                    try: return int(val) if val is not None else 0
-                    except: return 0
+                capitals_response = self._obtener_capitales_recomendados_hogar(
+                    mongo_id, id_pasarela, datos, proyecto.get("afinaciones", [])
+                )
+                if capitals_response is not None:
+                    return capitals_response
 
-                has_continente = _safe_int(datos.get("capital_continente")) > 0
-                has_contenido = _safe_int(datos.get("capital_contenido")) > 0
-                print(f"[MERLIN] has_continente={has_continente}, has_contenido={has_contenido}")
-                
-                if not has_continente or not has_contenido:
-                    print("[MERLIN] Capitals missing. Fetching recommendations...")
-                    try:
-                        self.guardar_datos_adicionales_hogar(id_pasarela, datos)
-                        print("[MERLIN] Hogar initial data saved OK. Now requesting capitals...")
-                        
-                        cap_resp = self.solicitar_capitales_recomendados(mongo_id, dgs_list)
-                        cap_process_id = cap_resp.get("idProcesoPasarela") or cap_resp.get("id_proceso_pasarela", "")
-                        if isinstance(cap_process_id, dict):
-                            cap_process_id = cap_process_id.get("idPasarela2", "")
-
-                        if cap_process_id:
-                            capitales_list = self._poll_capitales_recomendados(str(cap_process_id))
-                            dgs_to_name = {
-                                af.get("afinacion", {}).get("dgs", ""): af.get("afinacion", {}).get("nombre", af.get("descripcion_plantilla", ""))
-                                for af in afinaciones
-                            }
-                            if capitales_list:
-                                for cap in capitales_list:
-                                    cap["nombre_aseguradora"] = dgs_to_name.get(cap.get("dgs", ""), cap.get("dgs", ""))
-                                print(f"[MERLIN] Returning {len(capitales_list)} capital recommendations to agent.")
-                            else:
-                                print("[MERLIN] Capitals poll timed out. Returning empty recommendations.")
-                                capitales_list = []
-                            return {
-                                "success": True,
-                                "action_required": "select_capitals",
-                                "mensaje": "Se requieren seleccionar los capitales de continente y contenido."
-                                           if capitales_list else
-                                           "No se pudieron obtener recomendaciones de capitales a tiempo. Indica los capitales manualmente.",
-                                "proyecto_id": mongo_id,
-                                "id_pasarela": id_pasarela,
-                                "capitales_recomendados": capitales_list,
-                            }
-                    except Exception as exc:
-                        print(f"[MERLIN] Recommended capitals fetch failed: {exc}")
-                        return {
-                            "success": True,
-                            "action_required": "select_capitals",
-                            "mensaje": f"Error obteniendo recomendaciones: {exc}. Indica los capitales manualmente.",
-                            "proyecto_id": mongo_id,
-                            "id_pasarela": id_pasarela,
-                            "capitales_recomendados": [],
-                        }
-                
-                # If we are here, capitals ARE provided. Save them.
-                try:
-                    self.guardar_datos_adicionales_hogar(id_pasarela, datos)
-                    logger.info("[MERLIN] Hogar additional data saved successfully.")
-                except Exception as exc:
-                    logger.warning(f"[MERLIN] Hogar additional data save failed: {exc}")
-
-            # Launch tarification and poll until complete
-            tarificacion_ok = False
-            if mongo_id:
-                try:
-                    tar_resp = self.iniciar_tarificacion(mongo_id)
-                    process_id = (
-                        tar_resp.get("id_proceso_pasarela", {}).get("id_pasarela2", "")
-                    )
-                    if process_id:
-                        tarificacion_ok = self._poll_tarificacion(
-                            process_id, mongo_id, subramo, max_wait=max_wait_polling
-                        )
-                    else:
-                        logger.warning("[MERLIN] No process ID returned from iniciar.")
-                except Exception as exc:
-                    logger.warning(f"[MERLIN] Tarification launch failed: {exc}")
-
-            # Always fetch final project – polling calls persist insurer
-            # results, so the project may be tarified even on timeout.
-            proyecto_final = {}
-            ofertas_extraidas = []
-            if mongo_id:
-                try:
-                    proyecto_final = self.obtener_proyecto(mongo_id)
-                    logger.info(f"[MERLIN] Final project keys: {list(proyecto_final.keys())}")
-                    estado = proyecto_final.get("estado", proyecto_final.get("estadoProyecto", "DESCONOCIDO"))
-                    logger.info(f"[MERLIN] Final project estado: {estado}")
-
-                    # Extract ALL offers from the nested tarificaciones structure
-                    ofertas_extraidas = self._extract_all_offers(proyecto_final)
-
-                    if estado == "TARIFICADO" or len(ofertas_extraidas) > 0:
-                        tarificacion_ok = True
-
-                except Exception as exc:
-                    logger.warning(f"[MERLIN] Failed to fetch final project: {exc}")
+            tarificacion_ok, ofertas, proyecto_final = self._tarificar_y_obtener_ofertas(
+                mongo_id, subramo, max_wait_polling
+            )
 
             return {
                 "success": True,
@@ -913,7 +765,7 @@ class MerlinClient:
                 "mensaje": f"Proyecto de {ramo} creado con {len(plantillas_ids)} aseguradoras"
                            + (" y tarificación iniciada" if tarificacion_ok else ""),
                 "num_aseguradoras": len(plantillas_ids),
-                "ofertas": ofertas_extraidas,
+                "ofertas": ofertas,
                 "proyecto": proyecto_final,
             }
 
@@ -925,14 +777,7 @@ class MerlinClient:
             return {"success": False, "error": f"Error inesperado: {exc}"}
 
     def finalizar_proyecto_hogar(self, datos: dict) -> Dict[str, Any]:
-        """Finalize an existing HOGAR project with chosen capitals and launch tarification.
-
-        Expected keys in datos:
-          - proyecto_id (mongo_id from Phase 1)
-          - id_pasarela (from Phase 1)
-          - capital_continente, capital_contenido
-          - fecha_efecto (YYYY-MM-DD)
-        """
+        """Finalize an existing HOGAR project with chosen capitals and launch tarification."""
         try:
             self.login()
             mongo_id = datos.get("proyecto_id")
@@ -940,36 +785,13 @@ class MerlinClient:
             if not mongo_id or not id_pasarela:
                 return {"success": False, "error": "proyecto_id and id_pasarela are required"}
 
-            max_wait_polling = int(datos.get("max_wait_polling", 100))
-
             self.guardar_datos_adicionales_hogar(str(id_pasarela), datos)
-            logger.info("[MERLIN] Hogar additional data (capitals) saved successfully.")
+            logger.info("[MERLIN] Hogar additional data (capitals) saved.")
 
-            tarificacion_ok = False
-            try:
-                tar_resp = self.iniciar_tarificacion(mongo_id)
-                process_id = (
-                    tar_resp.get("id_proceso_pasarela", {}).get("id_pasarela2", "")
-                )
-                if process_id:
-                    tarificacion_ok = self._poll_tarificacion(
-                        process_id, mongo_id, SUBRAMO_HOGAR, max_wait=max_wait_polling
-                    )
-                else:
-                    logger.warning("[MERLIN] No process ID returned from iniciar.")
-            except Exception as exc:
-                logger.warning(f"[MERLIN] Tarification launch failed: {exc}")
-
-            proyecto_final = {}
-            ofertas_extraidas = []
-            if mongo_id:
-                try:
-                    proyecto_final = self.obtener_proyecto(mongo_id)
-                    ofertas_extraidas = self._extract_all_offers(proyecto_final)
-                    if ofertas_extraidas:
-                        tarificacion_ok = True
-                except Exception as exc:
-                    logger.warning(f"[MERLIN] Failed to fetch final project: {exc}")
+            max_wait_polling = int(datos.get("max_wait_polling", 100))
+            tarificacion_ok, ofertas, proyecto_final = self._tarificar_y_obtener_ofertas(
+                mongo_id, SUBRAMO_HOGAR, max_wait_polling
+            )
 
             return {
                 "success": True,
@@ -979,7 +801,7 @@ class MerlinClient:
                 "subramo": SUBRAMO_HOGAR,
                 "mensaje": f"Proyecto HOGAR finalizado con capitales y tarificación "
                            f"{'completada' if tarificacion_ok else 'en proceso'}",
-                "ofertas": ofertas_extraidas,
+                "ofertas": ofertas,
                 "proyecto": proyecto_final,
             }
         except MerlinClientError as exc:
