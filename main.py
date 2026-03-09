@@ -71,7 +71,7 @@ def main(request):
 
 
     # Load Firebase data (skip for Tarificador operations that don't need ERP credentials)
-    is_tarificador_op = option and (option.startswith('merlin_') or option.startswith('tarificador_') or option.startswith('avant2_'))
+    is_tarificador_op = option and (option.startswith('merlin_') or option.startswith('tarificador_') or option.startswith('avant2_') or option == 'tarificar_card')
 
     if is_tarificador_op:
         try:
@@ -445,6 +445,27 @@ def main(request):
                 return json.loads(json_str_result)
             except Exception as e:
                 return {"success": False, "error": f"Merlin finalize failed: {str(e)}"}
+
+        if option == 'tarificar_card':
+            from Merlin.card_transformer import transform_card_to_merlin_payload
+
+            body_type = request_json.get('body_type', '')
+            card_data = request_json.get('data', {})
+
+            if not body_type or body_type not in ('auto_sheet', 'home_sheet'):
+                return {"error": "Missing or invalid body_type. Must be 'auto_sheet' or 'home_sheet'."}, 400
+            if not card_data:
+                return {"error": "Missing 'data' field with card contents."}, 400
+
+            payload = transform_card_to_merlin_payload(body_type, card_data)
+            print(f"[MAIN] tarificar_card transformed payload keys: {list(payload.keys())}")
+            print(f"[MAIN] tarificar_card payload (first 2000): {json.dumps(payload, default=str, ensure_ascii=False)[:2000]}")
+
+            try:
+                json_str_result = create_retarificacion_merlin_project_tool(payload, {"tarificador": tarificador_config})
+                return json.loads(json_str_result)
+            except Exception as e:
+                return {"success": False, "error": f"Merlin tarificar_card failed: {str(e)}"}
 
         if option in ('merlin_create_project', 'tarificador_create_project'):
             if provider not in ("merlin", "avant2"):
