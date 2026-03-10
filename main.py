@@ -145,6 +145,22 @@ def main(request):
             siniestros = client.get_claim_status(id_siniestro)
             return siniestros 
 
+        if option == 'get_claim_assessment':
+            if not num_claim: return {"error": "Missing mandatory parameter: num_claim"}, 400
+            try:
+                return client.get_claim_assessment_by_num(num_claim)
+            except ValueError as e:
+                return {"error": str(e)}, 404
+
+        if option == 'add_claim_assessment':
+            if not num_claim: return {"error": "Missing mandatory parameter: num_claim"}, 400
+            assessment_data = request_json.get('assessment_data')
+            if not assessment_data: return {"error": "Missing mandatory parameter: assessment_data"}, 400
+            try:
+                return client.add_claim_assessment_by_num(num_claim, assessment_data)
+            except ValueError as e:
+                return {"error": str(e)}, 404
+
         if option == 'get_new_flagged_claims': 
             siniestros = client.get_new_flagged_claims()
             seguimiento_siniestros = []

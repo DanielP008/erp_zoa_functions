@@ -220,6 +220,26 @@ class EBrokerClient:
     # ========== Business methods used by main.py ==========
 
     #CLAIMS
+    def get_claim_by_company_reference(self, company_reference: str) -> List[Dict]:
+        return self._make_request("business", "GET", f"/v1/claims?query=companyReference:{company_reference}&order=ASC")
+
+    def get_claim_assessment_by_num(self, num_claim: str) -> List[Dict]:
+        claim_list = self.get_claim_by_company_reference(num_claim)
+        if not claim_list:
+             raise ValueError(f"Siniestro con referencia {num_claim} no encontrado")
+        claim_id = claim_list[0].get('id')
+        return self._make_request("business", "GET", f"/v1/claims/{claim_id}/assessment")
+
+    def add_claim_assessment_by_num(self, num_claim: str, assessment_data: Dict) -> Dict:
+        """
+        Adds assessment data to a claim.
+        """
+        claim_list = self.get_claim_by_company_reference(num_claim)
+        if not claim_list:
+             raise ValueError(f"Siniestro con referencia {num_claim} no encontrado")
+        claim_id = claim_list[0].get('id')
+        return self._make_request("business", "POST", f"/v1/claims/{claim_id}/assessment", data=assessment_data)
+
     def get_claim_labels(self, claim_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/claims/{claim_id}/labels")
 
@@ -428,7 +448,7 @@ class EBrokerClient:
 
     #DOCUMENTS
     def add_document_to_claim_by_num(self, num_claim: str, filename: str, base64_content: str, notes: str = "") -> Dict:
-        claim_list = self.get_claim_by_num(num_claim)
+        claim_list = self.get_claim_by_company_reference(num_claim)
         if not claim_list:
              raise ValueError(f"Claim number {num_claim} not found")
         
