@@ -225,6 +225,15 @@ class Fast360Client:
     def get_new_flagged_claims(self) -> List[Dict]:
         return []
 
+    def get_claim_by_company_reference(self, company_reference: str) -> List[Dict]:
+        return []
+
+    def get_claim_assessment_by_num(self, num_claim: str) -> List[Dict]:
+        return []
+
+    def add_claim_assessment_by_num(self, num_claim: str, assessment_data: Dict) -> Dict:
+        return {}
+
     def get_policy_by_id(self, policy_id: str) -> Dict:
         return self._make_request("ConsultaPoliza", {"PolizaId": policy_id})
 
