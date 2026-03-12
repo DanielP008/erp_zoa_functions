@@ -52,12 +52,6 @@ El proyecto está estructurado como una función HTTP (`main`) que procesa petic
    Coloca tu archivo de credenciales de Google Cloud en la raíz del proyecto con el nombre `service-account.json`.
    > **Nota**: Este archivo está ignorado por git por seguridad.
 
-3. **Ejecutar con Docker Compose**:
-   ```bash
-   docker-compose up --build
-   ```
-   El servicio estará disponible en `http://localhost:8080`.
-
 ## 📡 Uso de la API
 
 El servicio espera peticiones POST con un cuerpo JSON. 
