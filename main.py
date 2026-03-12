@@ -103,13 +103,13 @@ def main(request):
     # Skip ERP login for Tarificador operations that don't need it
     if is_tarificador_op:
         pass
-    elif raw_erp_type == 'ebroker':
+    elif raw_erp_type in ['ebroker', 'tesis']:
         try:
             client = erp_auth.get_erp_client(company_config)
             if not client or isinstance(client, str):
-                return {"error": f"Error conectando con ebroker (Login fallido): {client}"}, 500
+                return {"error": f"Error conectando con {raw_erp_type} (Login fallido): {client}"}, 500
         except Exception as e:
-            return {'error': f'Error conectando con ebroker: {str(e)}'}, 500
+            return {'error': f'Error conectando con {raw_erp_type}: {str(e)}'}, 500
     elif raw_erp_type in ['excel', 'excell']:
         try:
             client = excel_functions.get_erp_client(company_config)
