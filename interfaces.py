@@ -7,16 +7,32 @@ class BaseRequest(TypedDict):
     option: str      # Mandatory
 
 class DetalleClienteRequest(BaseRequest): # option: 'detalle_cliente'
+    """
+    Recupera los detalles de un cliente por su NIF/DNI.
+    Llama a get_customer_by_nif en el ERP correspondiente.
+    """
     nif: str         # Mandatory
 
 class GetPoliciesRequest(BaseRequest): # option: 'get_policies'
+    """
+    Obtiene todas las pólizas activas asociadas a un cliente por su NIF o filtradas por ramo.
+    Llama a get_all_policys_by_client_category o get_customer_policies.
+    """
     nif: str         # Mandatory
     lines: Optional[str] # Optional
 
 class GetClaimsRequest(BaseRequest): # option: 'get_claims'
+    """
+    Obtiene los siniestros de un cliente filtrados por un ramo específico.
+    Llama a get_customer_claims_by_category en el ERP correspondiente.
+    """
     nif: str         # Mandatory
 
 class GetClaimByRiskRequest(BaseRequest): # option: 'get_claim_by_risk'
+    """
+    Obtiene los siniestros de un cliente filtrados por el riesgo de la póliza asociada (ej. matrícula).
+    Llama a get_claim_by_risk en el ERP correspondiente.
+    """
     nif: str         # Mandatory
     risk: str        # Mandatory
 
@@ -24,6 +40,10 @@ class GetDocPoliciesRequest(BaseRequest): # option: 'get_doc_policies'
     num_poliza: str  # Mandatory
 
 class GetPolicyByNumRequest(BaseRequest): # option: 'get_policy_by_num'
+    """
+    Busca y retorna los detalles de una póliza específica usando su número.
+    Llama a get_policy_by_num en el ERP correspondiente.
+    """
     num_poliza: str  # Mandatory
 
 class DocumentoReciboRequest(BaseRequest): # option: 'documento_recibo'
@@ -41,16 +61,28 @@ class RenovacionesRecibosRequest(BaseRequest): # option: 'renovaciones_recibos'
     frequency: Optional[int]
 
 class GetStatusClaimsRequest(BaseRequest): # option: 'get_status_claims'
+    """
+    Obtiene el estado actual de un siniestro a partir de su ID interno.
+    Llama a get_claim_status en el ERP correspondiente.
+    """
     id_siniestro: int # Mandatory
 
 
 class CreateCustomerRequest(BaseRequest): # option: 'create_customer'
+    """
+    Da de alta a un nuevo cliente en el ERP.
+    Llama a post_customer en el ERP correspondiente.
+    """
     name: str        # Mandatory
     surname: str     # Mandatory
     nif: str         # Mandatory
     address: str     # Mandatory
 
 class AddDocumentClaimRequest(BaseRequest): # option: 'add_document_claim'
+    """
+    Sube un documento asociado a un número de siniestro específico.
+    Llama a add_document_to_claim_by_num.
+    """
     num_claim: str # Mandatory
     filename: str    # Mandatory
     base64_content: str # Mandatory
@@ -60,43 +92,92 @@ class AddDocumentClaimRequest(BaseRequest): # option: 'add_document_claim'
     notes: Optional[str]
 
 class GetReturnedReceiptsRequest(BaseRequest): # option: 'get_returned_receipts'
+    """
+    Obtiene los recibos devueltos en un rango temporal.
+    Llama a get_returned_receipts en el ERP.
+    """
     start_date: Optional[str]
     end_date: Optional[str]
 
 class AddDocumentPolicyRequest(BaseRequest): # option: 'add_document_policy'
+    """
+    Sube un documento asociado a una póliza específica.
+    Llama a add_document_to_policy_by_num.
+    """
     num_poliza: str  # Mandatory
     filename: str    # Mandatory
     base64_content: str # Mandatory
     notes: Optional[str]
 
 class LoadRenewalsRequest(BaseRequest): # option: 'load_renewals'
+    """
+    Procesa las renovaciones masivas de una compañía evaluando incremento de prima.
+    Llama a process_load_renewals.
+    """
     percent_threshold: Optional[float]
     amount_threshold: Optional[float]
 
 class GetNewFlaggedClaimsRequest(BaseRequest): # option: 'get_new_flagged_claims'
+    """
+    Calcula y obtiene los siniestros recientes que contienen una plantilla de aviso.
+    """
     pass
 
 class GetNewPoliciesTodayRequest(BaseRequest): # option: 'get_new_policies_today'
+    """
+    Obtiene las pólizas de nueva creación del día de hoy.
+    """
     pass
 
 class GetCustomerPhoneByNifRequest(BaseRequest): # option: 'get_customer_phone_by_nif'
+    """
+    Devuelve el número de teléfono principal de un cliente dado su NIF/DNI.
+    """
     nif: str         # Mandatory
 
 class AddDocumentCustomerRequest(BaseRequest): # option: 'add_document_customer'
+    """
+    Sube un documento al perfil de un cliente aportando su NIF/DNI.
+    """
     nif: str         # Mandatory
     filename: str    # Mandatory
     base64_content: str # Mandatory
     notes: Optional[str]
 
 class CreateCandidateRequest(BaseRequest): # option: 'create_candidate'
+    """
+    Crea un nuevo candidato en el ERP.
+    """
     name: str        # Mandatory
     phone: str       # Mandatory
 
 class GetNewCandidatesTodayRequest(BaseRequest): # option: 'get_new_candidates_today'
+    """
+    Obtiene los candidatos creados o modificados hoy.
+    """
     pass
 
 class GetCandidateByNifRequest(BaseRequest): # option: 'get_candidate_by_nif'
+    """
+    Obtiene los datos de un candidato buscando por NIF/DNI.
+    """
     nif: str         # Mandatory
+    
+class GetClaimAssessmentRequest(BaseRequest): # option: 'get_claim_assessment'
+    """
+    Obtiene los datos de peritación asociados a un siniestro, buscando por su número (companyReference).
+    Llama a get_claim_assessment_by_num.
+    """
+    num_claim: str   # Mandatory
+
+class AddClaimAssessmentRequest(BaseRequest): # option: 'add_claim_assessment'
+    """
+    Añade o actualiza los datos de peritación de un siniestro (companyReference).
+    Llama a add_claim_assessment_by_num.
+    """
+    num_claim: str   # Mandatory
+    assessment_data: Dict # Mandatory
+
     
 # ---------------------------------------------------
 
@@ -209,15 +290,30 @@ class AddDocumentCustomerResponse(TypedDict): # option: 'add_document_customer' 
     filename: str
     description: str
 
+GetClaimAssessmentResponse = List[Dict] # option: 'get_claim_assessment'
+AddClaimAssessmentResponse = Dict       # option: 'add_claim_assessment'
+
 # --- MERLIN REQUESTS ---
 
-class MerlinConsultaVehiculoRequest(BaseRequest): # option: 'merlin_consulta_vehiculo'
+class MerlinConsultaVehiculoRequest(BaseRequest): # option: 'merlin_consulta_vehiculo' o 'tarificador_consulta_vehiculo'
+    """
+    Consulta a la DGT los datos de un vehículo a partir de su matrícula a través de Merlin o Avant2.
+    Llama a consulta_vehiculo_merlin_tool o consulta_vehiculo_avant2_tool según configuración.
+    """
     matricula: str   # Mandatory
 
-class MerlinGetTownByCpRequest(BaseRequest): # option: 'merlin_get_town_by_cp'
+class MerlinGetTownByCpRequest(BaseRequest): # option: 'merlin_get_town_by_cp' o 'tarificador_get_town_by_cp'
+    """
+    Obtiene la población (municipio y provincia) a partir de un Código Postal mediante Merlin o Avant2.
+    Llama a get_town_by_cp_merlin_tool o get_town_by_cp_avant2_tool.
+    """
     cp: str          # Mandatory
 
-class MerlinConsultarCatastroRequest(BaseRequest): # option: 'merlin_consultar_catastro'
+class MerlinConsultarCatastroRequest(BaseRequest): # option: 'merlin_consultar_catastro' o 'tarificador_consultar_catastro'
+    """
+    Consulta los datos catastrales de una vivienda (año de construcción, metros, etc) mediante Merlin o Avant2.
+    Llama a consultar_catastro_merlin_tool o consultar_catastro_avant2_tool.
+    """
     provincia: str     # Mandatory
     municipio: str     # Mandatory
     tipo_via: Optional[str]      # Optional (default 'CL') but good to list
@@ -229,9 +325,13 @@ class MerlinConsultarCatastroRequest(BaseRequest): # option: 'merlin_consultar_c
     piso: Optional[str] # Alias for planta
     puerta: Optional[str]
 
-class MerlinCreateProjectRequest(BaseRequest): # option: 'merlin_create_project'
+class MerlinCreateProjectRequest(BaseRequest): # option: 'merlin_create_project' o 'tarificador_create_project'
+    """
+    Inicia la tarificación y creación de un proyecto/presupuesto (Auto u Hogar) en Merlin o Avant2.
+    Llama a create_retarificacion_merlin_project_tool o crea el proyecto en Avant2 según la configuración (tarificador_config).
+    """
     # Base fields
-    ramo: Optional[str] # AUTO or HOGAR
+    ramo: Optional[str] # AUTO o HOGAR
     dni: str            # Mandatory
     codigo_postal: str  # Mandatory for HOGAR
     fecha_efecto: str   # Mandatory
