@@ -103,13 +103,13 @@ def main(request):
     # Skip ERP login for Tarificador operations that don't need it
     if is_tarificador_op:
         pass
-    elif raw_erp_type == 'ebroker':
+    elif raw_erp_type in ['ebroker', 'tesis']:
         try:
             client = erp_auth.get_erp_client(company_config)
             if not client or isinstance(client, str):
-                return {"error": f"Error conectando con ebroker (Login fallido): {client}"}, 500
+                return {"error": f"Error conectando con {raw_erp_type} (Login fallido): {client}"}, 500
         except Exception as e:
-            return {'error': f'Error conectando con ebroker: {str(e)}'}, 500
+            return {'error': f'Error conectando con {raw_erp_type}: {str(e)}'}, 500
     elif raw_erp_type in ['excel', 'excell']:
         try:
             client = excel_functions.get_erp_client(company_config)
@@ -144,6 +144,22 @@ def main(request):
             if not id_siniestro: return {"error": "Missing mandatory parameter: id_siniestro"}, 400
             siniestros = client.get_claim_status(id_siniestro)
             return siniestros 
+
+        if option == 'get_claim_assessment':#Peritaje
+            if not num_claim: return {"error": "Missing mandatory parameter: num_claim"}, 400
+            try:
+                return client.get_claim_assessment_by_num(num_claim)
+            except ValueError as e:
+                return {"error": str(e)}, 404
+
+        if option == 'add_claim_assessment':#Peritaje
+            if not num_claim: return {"error": "Missing mandatory parameter: num_claim"}, 400
+            assessment_data = request_json.get('assessment_data')
+            if not assessment_data: return {"error": "Missing mandatory parameter: assessment_data"}, 400
+            try:
+                return client.add_claim_assessment_by_num(num_claim, assessment_data)
+            except ValueError as e:
+                return {"error": str(e)}, 404
 
         if option == 'get_new_flagged_claims': 
             siniestros = client.get_new_flagged_claims()

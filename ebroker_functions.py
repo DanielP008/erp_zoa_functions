@@ -84,13 +84,6 @@ class EBrokerClient:
         return response.json()
 
     # ========== CRM methods used by main.py ==========
-    def search_customers(self, query: str, sort: Optional[str] = None,
-                         order: str = "ASC", page: int = 0, size: int = 20) -> List[Dict]:
-        params = {"query": query, "page": page, "size": size, "order": order}
-        if sort:
-            params["sort"] = sort
-        return self._make_request("crm", "GET", "/v1/customers", params=params)
-
     def get_customer_by_nif(self, nif: str) -> List[Dict]:
         result = self._make_request("crm", "GET", f"/v1/customers?query=legalId:{nif}")
         return result
@@ -114,22 +107,6 @@ class EBrokerClient:
                 "charge_office_id": 1
         })
         return self._make_request("crm", "POST", "/v1/customers", data=payload)
-
-    def get_customer_active_policies(self, nif: str) -> List[Dict]:
-        polizas_vigentes = []
-        polizas = self.get_customer_policies(nif)
-        for p in polizas:
-            if p.get('status', {}).get('id') == 'V':
-                company_name = p.get('company', {}).get('name', '')
-                polizas_vigentes.append({
-                    'number': p.get('number', ''),
-                    'company_name': company_name,
-                    'risk': p.get('risk', ''),
-                    'category_name': p.get('subcategory', {}).get('category', {}).get('name', ''),
-                    'subcategory_name': p.get('subcategory', {}).get('name', ''),
-                    'phones': get_phones(company_name)
-                })
-        return polizas_vigentes
 
     def get_all_policys_by_client_category(self, nif: str, ramo: str, company_id: str=None) -> List[Dict]:
         polizas = self.get_customer_policies(nif)
@@ -220,6 +197,26 @@ class EBrokerClient:
     # ========== Business methods used by main.py ==========
 
     #CLAIMS
+    def get_claim_by_company_reference(self, company_reference: str) -> List[Dict]:
+        return self._make_request("business", "GET", f"/v1/claims?query=companyReference:{company_reference}&order=ASC")
+
+    def get_claim_assessment_by_num(self, num_claim: str) -> List[Dict]:
+        claim_list = self.get_claim_by_company_reference(num_claim)
+        if not claim_list:
+             raise ValueError(f"Siniestro con referencia {num_claim} no encontrado")
+        claim_id = claim_list[0].get('id')
+        return self._make_request("business", "GET", f"/v1/claims/{claim_id}/assessment")
+
+    def add_claim_assessment_by_num(self, num_claim: str, assessment_data: Dict) -> Dict:
+        """
+        Adds assessment data to a claim.
+        """
+        claim_list = self.get_claim_by_company_reference(num_claim)
+        if not claim_list:
+             raise ValueError(f"Siniestro con referencia {num_claim} no encontrado")
+        claim_id = claim_list[0].get('id')
+        return self._make_request("business", "POST", f"/v1/claims/{claim_id}/assessment", data=assessment_data)
+
     def get_claim_labels(self, claim_id: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/claims/{claim_id}/labels")
 
@@ -259,9 +256,7 @@ class EBrokerClient:
     def get_policy_by_num(self, policy_num: str) -> Dict:
         return self._make_request("business", "GET", f"/v1/policies?query=number:{policy_num}&order=ASC")
 
-    def get_policies_for_specific_date(self, date) -> List[Dict]:
-        params = {"query": f"renewalDate:{date}"}
-        return self._make_request("business", "GET", "/v1/policies", params=params)
+
 
     #CUSTOMERS
     def get_customer_phone_by_nif(self, nif: str) -> Optional[str]:
@@ -292,9 +287,6 @@ class EBrokerClient:
     #RECEIPTS
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
-
-    def get_receipts_for_specific_date(self, date) -> List[Dict]:
-        return self._make_request("business", "GET", f"/v1/receipts?query=dueDate:{date}")
 
     def get_upcoming_receipts(self, start_date=None, frequency: int = 7):
         if not start_date:
@@ -393,42 +385,9 @@ class EBrokerClient:
         return list(policies.values())
 
     
-    def get_receipt_labels(self, receipt_id: int) -> List[Dict]:
-        return self._make_request("business", "GET", f"/v1/receipts/{receipt_id}/labels")
-
-    def get_receipts_label(self, start_date, frequency):
-        if start_date is None:
-            start_date = datetime.now()
-        result = []
-        recibos = self.get_upcoming_receipts(start_date, frequency)
-        for recibo in recibos:
-            cliente = recibo.get('customer', {})
-            lbls = self.get_receipt_labels(recibo.get('id'))
-            for lbl in lbls:
-                if lbl:
-                    nombre = str(cliente.get('name', ''))
-                    # In receipts, the line (ramo) is inside policy -> subcategory -> name
-                    ramo = str(recibo.get('policy', {}).get('subcategory', {}).get('name', '') + ' ' + recibo.get('policy', {}).get('subcategory', {}).get('category', {}).get('name', ''))
-                    riesgo = str(recibo.get('risk', ''))
-                    prima = str(recibo.get('total_premium', ''))
-                    nif = str(cliente.get('legal_id', ''))
-                    gestor = str(cliente.get('management_user', {})) # Adjust if it comes as dict
-                    plantilla = str(lbl.get("value"))
-                    
-                    result.append({
-                        'nif': nif,
-                        'ramo': ramo,
-                        'nombre': nombre,
-                        'riesgo': riesgo,
-                        'prima': prima,
-                        'plantilla': plantilla,
-                        'gestor': gestor
-                    })
-        return result
-
     #DOCUMENTS
     def add_document_to_claim_by_num(self, num_claim: str, filename: str, base64_content: str, notes: str = "") -> Dict:
-        claim_list = self.get_claim_by_num(num_claim)
+        claim_list = self.get_claim_by_company_reference(num_claim)
         if not claim_list:
              raise ValueError(f"Claim number {num_claim} not found")
         

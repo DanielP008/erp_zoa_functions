@@ -90,14 +90,6 @@ class TesisClient:
 
     # ========== CRM / Customer Methods ==========
 
-    def search_customers(self, query: str, sort: Optional[str] = None, order: str = "ASC", page: int = 0, size: int = 20) -> List[Dict]:
-        params = {"query": query, "page": page, "size": size, "order": order}
-        if sort:
-            params["sort"] = sort
-        # TODO: Ajustar endpoint real de búsqueda de clientes en Tesis
-        result = self._make_request("GET", "/clients", extra_params=params)
-        return result if isinstance(result, list) else result.get("data", [])
-
     def get_customer_by_nif(self, nif: str) -> List[Dict]:#Podemos no necesitar mapear, pero asi mantenemos compatibilidad con el agente
         result = self._make_request("GET", "/clients", extra_params={"identificationDocumentId": nif})
         
@@ -203,24 +195,6 @@ class TesisClient:
         # Call Tesis wrapper
         return self._make_request("POST", "/clients", data=payload)
 
-    def get_customer_active_policies(self, nif: str) -> List[Dict]:
-        polizas_vigentes = []
-        polizas = self.get_customer_policies(nif)
-        for p in polizas:
-            # Dependiendo de la estructura de Tesis, ajustamos el check de vigencia
-            status_id = p.get('status', {}).get('id', p.get('status'))
-            if status_id in ['V', 'Vigor', 'Active']:
-                company_name = p.get('company', {}).get('name', '')
-                polizas_vigentes.append({
-                    'number': p.get('number', ''),
-                    'company_name': company_name,
-                    'risk': p.get('risk', ''),
-                    'category_name': p.get('subcategory', {}).get('category', {}).get('name', ''),
-                    'subcategory_name': p.get('subcategory', {}).get('name', ''),
-                    'phones': get_phones(company_name)
-                })
-        return polizas_vigentes
-
     def get_all_policys_by_client_category(self, nif: str, ramo: str, company_id: str = None) -> List[Dict]:
         polizas = self.get_customer_policies(nif)
         polizas_ramo = []
@@ -269,12 +243,18 @@ class TesisClient:
     def get_new_flagged_claims(self) -> Dict:
         return {}
 
+    def get_claim_by_company_reference(self, company_reference: str) -> List[Dict]:
+        return []
+
+    def get_claim_assessment_by_num(self, num_claim: str) -> List[Dict]:
+        return []
+
+    def add_claim_assessment_by_num(self, num_claim: str, assessment_data: Dict) -> Dict:
+        return {}
+
     # ========== Policies Methods ==========
 
     def get_policy_by_num(self, policy_num: str) -> List[Dict]:
-        return []
-
-    def get_policies_for_specific_date(self, date) -> List[Dict]:
         return []
 
     def get_new_policies_today(self) -> List[Dict]:
@@ -296,9 +276,6 @@ class TesisClient:
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         return []
 
-    def get_receipts_for_specific_date(self, date) -> List[Dict]:
-        return []
-
     def get_upcoming_receipts(self, start_date=None, frequency: int = 7) -> List[Dict]:
         return []
 
@@ -306,12 +283,6 @@ class TesisClient:
         return []
 
     def get_upcoming_renewals(self, start_date=None, frequency: int = 7) -> List[Dict]:
-        return []
-
-    def get_receipt_labels(self, receipt_id: int) -> List[Dict]:
-        return []
-
-    def get_receipts_label(self, start_date, frequency) -> List[Dict]:
         return []
 
     # ========== Documents Methods ==========
@@ -334,8 +305,7 @@ class TesisClient:
     def add_document_to_customer_by_nif(self, nif: str, filename: str, base64_content: str, notes: str = "") -> Dict:
         return {}
 
-    def import_zoa_client_notes(self, client_id: int, notes: List[Dict]) -> Dict:
-        return {}
+
     
     def get_document(self, document_id: int) -> Dict:
         return {}

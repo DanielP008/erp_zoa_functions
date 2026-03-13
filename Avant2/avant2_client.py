@@ -121,17 +121,6 @@ class Avant2Client:
             logger.error(f"[AVANT2] Login failed: {exc}")
             raise Avant2ClientError(f"Avant2 Login failed: {exc}")
 
-    def obtener_aseguradoras(self) -> List[Dict[str, Any]]:
-        """Get the available insurance companies.
-        
-        Endpoint: GET /insurance-companies
-        Documentation: https://portal.api-int.codeoscopic.io/#get-/insurance-companies
-        """
-        logger.info("[AVANT2] Fetching insurance companies...")
-        items = self._make_request("GET", "/insurance-companies")
-        logger.info(f"[AVANT2] Found {len(items) if isinstance(items, list) else 'unknown'} insurance companies.")
-        return items
-
     def create_insurance_project(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new insurance project.
         
@@ -140,14 +129,6 @@ class Avant2Client:
         logger.info("[AVANT2] Creating new insurance project...")
         return self._make_request("POST", "/insurances", json=payload)
 
-    def update_insurance_project(self, project_id: str, payload: Dict[str, Any]) -> None:
-        """Update an existing insurance project.
-        
-        Endpoint: PATCH /insurances/{id}
-        """
-        logger.info(f"[AVANT2] Updating insurance project {project_id}...")
-        self._make_request("PATCH", f"/insurances/{project_id}", json=payload)
-        
     def get_insurance_project(self, project_id: str) -> Dict[str, Any]:
         """Retrieve an insurance project.
         
@@ -155,54 +136,6 @@ class Avant2Client:
         """
         logger.info(f"[AVANT2] Fetching insurance project {project_id}...")
         return self._make_request("GET", f"/insurances/{project_id}")
-
-    def create_report(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """Creates a report of the specified type.
-        
-        Endpoint: POST /insurances/{id}/reports
-        """
-        logger.info(f"[AVANT2] Creating report for project {project_id}...")
-        return self._make_request("POST", f"/insurances/{project_id}/reports", json=payload)
-
-    def crear_proyecto_completo(self, datos: dict) -> Dict[str, Any]:
-        """[TODO] Complete implementation for creating and rating a project using the new endpoints."""
-        try:
-            self.login()
-            ramo = str(datos.get("ramo", "AUTO")).upper()
-            
-            # TODO: Map `datos` to the Codeoscopic `/insurances` payload format
-            # This is a placeholder payload based on the docs provided
-            initial_payload = {
-                "insuranceLine": {
-                    "id": "Car" if ramo == "AUTO" else "Home"
-                }
-                # ... other mapping logic ...
-            }
-            
-            # 1. Create project
-            # project_data = self.create_insurance_project(initial_payload)
-            # project_id = project_data.get("id")
-            
-            # 2. Update with patch (if needed for the flow, or just create with all data at once)
-            # self.update_insurance_project(project_id, full_payload)
-            
-            # 3. Request tarification (Need to check doc for the exact endpoint to trigger rating, 
-            # maybe it's automatic on GET /insurances/{id} or there is a specific action)
-            
-            return {
-                "success": True,
-                "proyecto_id": "TODO",
-                "subramo": SUBRAMO_AUTO if ramo == "AUTO" else "HOGAR",
-                "mensaje": f"Proyecto {ramo} en Avant2 (En desarrollo con nueva API)",
-                "ofertas": [],
-                "proyecto": {},
-            }
-        except Avant2ClientError as exc:
-            logger.error(f"[AVANT2] Project creation failed: {exc}")
-            return {"success": False, "error": str(exc)}
-        except Exception as exc:
-            logger.exception(f"[AVANT2] Unexpected error creating project: {exc}")
-            return {"success": False, "error": f"Error inesperado: {exc}"}
 
 # =============================================================================
 # Wrapper functions for tools (Skeletons to match Merlin's interface)
@@ -216,8 +149,4 @@ def _extract_tarificador_config(config: Optional[dict]) -> dict:
         return config.get("tarificador", {})
     return config
 
-def create_avant2_project(datos: dict, tarificador_config: Optional[dict] = None) -> Dict[str, Any]:
-    """Create a complete Avant2 insurance project."""
-    client = Avant2Client(_extract_tarificador_config(tarificador_config))
-    return client.crear_proyecto_completo(datos)
 
