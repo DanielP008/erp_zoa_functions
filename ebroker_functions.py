@@ -285,7 +285,7 @@ class EBrokerClient:
         return self._make_request("crm", "GET", f"/v1/candidates?query=signupDate:{datetime.now().strftime('%Y-%m-%d')}")
 
     #RECEIPTS
-    def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
+    def get_receipts_by_num_policy(self, num_poliza: str) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
 
     def get_newest_receipt(self, num_poliza: str) -> Dict:
