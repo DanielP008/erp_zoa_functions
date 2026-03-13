@@ -250,6 +250,12 @@ class Fast360Client:
     def get_returned_receipts(self, start_date=None, end_date=None) -> List[Dict]:
         return []
 
+    def get_newest_receipt(self, num_poliza: str) -> Dict:
+        return {}
+
+    def get_active_receipt(self, num_poliza: str) -> Dict:
+        return {}
+
     def get_doc_receipts_by_num_policy(self, num_poliza: str) -> List[Dict]:
         return []
 

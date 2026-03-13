@@ -99,6 +99,18 @@ class GetReturnedReceiptsRequest(BaseRequest): # option: 'get_returned_receipts'
     start_date: Optional[str]
     end_date: Optional[str]
 
+class GetNewestReceiptRequest(BaseRequest): # option: 'get_newest_receipt'
+    """
+    Obtiene el recibo más reciente de una póliza.
+    """
+    num_poliza: str # Mandatory
+
+class GetActiveReceiptRequest(BaseRequest): # option: 'get_active_receipt'
+    """
+    Obtiene el recibo activo (En vigor o pendiente) más reciente de una póliza.
+    """
+    num_poliza: str # Mandatory
+
 class AddDocumentPolicyRequest(BaseRequest): # option: 'add_document_policy'
     """
     Sube un documento asociado a una póliza específica.

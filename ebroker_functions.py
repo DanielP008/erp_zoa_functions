@@ -288,6 +288,24 @@ class EBrokerClient:
     def get_receipts_by_num_policy(self, num_poliza: int) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
 
+    def get_newest_receipt(self, num_poliza: str) -> Dict:
+        """
+        Gets the most recently created receipt for a given policy.
+        """
+        receipts = self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}&sort=createdDate&order=DESC&size=1")
+        return receipts[0] if receipts else {}
+
+    def get_active_receipt(self, num_poliza: str) -> Dict:
+        """
+        Gets the most recently created active receipt (status = Vigor or Pendiente) for a given policy.
+        """
+        receipts = self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}&query=status.id:V&sort=createdDate&order=DESC&size=1")
+        if receipts:
+            return receipts[0]
+        # Fallback if no specific active receipt matched, just fetch the newest pending
+        receipts_pending = self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}&query=status.description:Pendiente&sort=createdDate&order=DESC&size=1")
+        return receipts_pending[0] if receipts_pending else {}
+
     def get_upcoming_receipts(self, start_date=None, frequency: int = 7):
         if not start_date:
             start_date = datetime.now()

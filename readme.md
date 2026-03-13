@@ -180,6 +180,16 @@ Este documento detalla todas las entradas (`option`) procesadas por el archivo `
 
 ## Recibos y Renovaciones
 
+### `get_newest_receipt`
+* **Descripción:** Obtiene el recibo general más reciente creado para una póliza.
+* **Parámetros:** `num_poliza` (str)
+* **Opción ERP** `get_newest_receipt`
+
+### `get_active_receipt`
+* **Descripción:** Obtiene el recibo activo (En vigor o pendiente de cobro) más reciente de una póliza.
+* **Parámetros:** `num_poliza` (str)
+* **Opción ERP** `get_active_receipt`
+
 ### `get_returned_receipts`
 * **Descripción:** Obtiene los recibos devueltos en un rango temporal por la entidad bancaria o compañía.
 * **Parámetros:** `start_date` (str, opcional), `end_date` (str, opcional)
