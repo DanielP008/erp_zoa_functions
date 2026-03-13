@@ -287,6 +287,8 @@ class EBrokerClient:
     #RECEIPTS
     def get_receipts_by_num_policy(self, num_poliza: str) -> List[Dict]:
         return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}")
+    def get_last2_receipts_by_num_policy(self, num_poliza: str) -> List[Dict]:
+        return self._make_request("business", "GET", f"/v1/receipts?query=policy.number:{num_poliza}&sort=effectDate&order=DESC&size=2")
 
     def get_newest_receipt(self, num_poliza: str) -> Dict:
         """

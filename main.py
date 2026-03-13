@@ -259,6 +259,10 @@ def main(request):
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             return client.get_receipts_by_num_policy(num_poliza)
 
+        if option == 'get_last2_receipts_by_num_policy':
+            if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
+            return client.get_last2_receipts_by_num_policy(num_poliza)
+
         if option == 'get_newest_receipt':
             if not num_poliza: return {"error": "Missing mandatory parameter: num_poliza"}, 400
             return client.get_newest_receipt(num_poliza)
