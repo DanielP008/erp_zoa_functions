@@ -195,6 +195,21 @@ class TesisClient:
         # Call Tesis wrapper
         return self._make_request("POST", "/clients", data=payload)
 
+    def update_customer(self, nif: str, customer_data: Dict) -> Dict:
+        """
+        Updates a client.
+        """
+        customer_id = customer_data.get("id")
+        if not customer_id:
+            if not nif:
+                raise ValueError("NIF is required to find customer for update if 'id' is not provided in data")
+            customers = self.get_customer_by_nif(nif)
+            if not customers:
+                raise ValueError(f"Customer with NIF {nif} not found")
+            customer_id = customers[0].get("id")
+
+        return self._make_request("PUT", f"/clients/{customer_id}", data=customer_data)
+
     def get_all_policys_by_client_category(self, nif: str, ramo: str, company_id: str = None) -> List[Dict]:
         polizas = self.get_customer_policies(nif)
         polizas_ramo = []
