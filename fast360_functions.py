@@ -167,6 +167,15 @@ class Fast360Client:
                 })
         return filtered
 
+    def get_customer_risks(self, nif: str) -> List[Dict]:
+        customers = self.get_customer_by_nif(nif)
+        if not customers:
+            return []
+        
+        client_id = customers[0].get("id")
+        result = self._make_request("RiesgosCliente", {"ClienteId": client_id})
+        return result.get("RiesgosCliente", [])
+
     def get_all_policys_by_client_risk(self, nif: str, risk: str, company_id: str = None) -> List[Dict]:
         policies = self.get_customer_policies(nif)
         filtered = []
@@ -250,11 +259,39 @@ class Fast360Client:
     def get_returned_receipts(self, start_date=None, end_date=None) -> List[Dict]:
         return []
 
+    def get_receipts_by_policy_id(self, policy_id: str) -> List[Dict]:
+        result = self._make_request("RecibosPoliza", {"PolizaId": policy_id})
+        return result.get("RecibosPoliza", [])
+
+    def get_receipts_by_num_policy(self, num_poliza: str) -> List[Dict]:
+        logger.warning(f"get_receipts_by_num_policy ({num_poliza}) requires NIF search in Fast360. Implement lookup if needed.")
+        return []
+
+    def get_last2_receipts_by_num_policy(self, num_poliza: str) -> List[Dict]:
+        receipts = self.get_receipts_by_num_policy(num_poliza)
+        return receipts[:2] if receipts else []
+
     def get_newest_receipt(self, num_poliza: str) -> Dict:
-        return {}
+        receipts = self.get_receipts_by_num_policy(num_poliza)
+        return receipts[0] if receipts else {}
 
     def get_active_receipt(self, num_poliza: str) -> Dict:
-        return {}
+        receipts = self.get_receipts_by_num_policy(num_poliza)
+        return receipts[0] if receipts else {}
+
+    def get_documents_by_entity(self, entity_id: str, entity_type: int) -> List[Dict]:
+        """
+        Consulta documentos usando ConsultaDocumentos.
+        TipoEntidad: 0=Cliente, 1=Poliza, 2=Recibo, 3=Siniestro
+        """
+        payload = {
+            "Documento": {
+                "IdEntidad": entity_id,
+                "TipoEntidad": entity_type
+            }
+        }
+        result = self._make_request("ConsultaDocumentos", payload)
+        return result.get("DocumentosConsulta", [])
 
     def get_doc_receipts_by_num_policy(self, num_poliza: str) -> List[Dict]:
         return []
