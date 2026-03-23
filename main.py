@@ -320,6 +320,11 @@ def main(request):
             }
             return client.post_customer(customer_data)
 
+        if option == 'update_client':
+            client_data = request_json.get('client_data')
+            if not client_data: return {"error": "Missing mandatory parameter: client_data"}, 400
+            return client.update_customer(nif, client_data)
+
         if option == 'add_document_customer':
             if not nif: return {"error": "Missing mandatory parameter: nif"}, 400
             if not filename: return {"error": "Missing mandatory parameter: filename"}, 400
