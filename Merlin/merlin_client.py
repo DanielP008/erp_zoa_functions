@@ -4,11 +4,12 @@ Creates auto and home insurance projects in Merlin and launches multi-insurer pr
 API Docs: https://drseguros.merlin.insure/multi/multitarificador4-servicios/doc.html
 
 Flow:
-  1. POST /login                         -> JWT token
-  2. GET  /aseguradoras?subramo=...      -> Available insurer templates
-  3. GET  /proyecto/nuevo?ids...         -> In-memory project template
+  1. POST /login                                          -> JWT token
+  2. GET  /aseguradoras?subramo=...                       -> Available insurer templates
+  3. POST /proyecto/nuevo (preferred) OR                  -> Project with auto-generated IDs
+     GET  /proyecto/afinaciones + POST /proyecto (fallback) -> Fallback if /nuevo is unavailable
   4. Fill datos_basicos (vehiculo/riesgo_hogar, tomador, conductor/propietario, historial)
-  5. PUT  /proyecto                      -> Save project to DB
+  5. PUT  /proyecto                                       -> Save project to DB
   6. (Hogar only) PUT /proyectos-hogar/{idPasarela}/datosAdicionales
 """
 
@@ -120,59 +121,38 @@ def _normalize_enum(value: str) -> str:
 
 
 def _build_riesgo_hogar(data: dict) -> dict:
-    """Build riesgo_hogar dict for datos_basicos (Hogar projects)."""
+    """Build vivienda dict for datos_basicos (Hogar projects).
+    Matches the structure from the working Colab example.
+    """
     return {
         "caracteristicas": {
-            "tipo_vivienda": _normalize_enum(data.get("tipo_vivienda", "PISO")),
-            "situacion_vivienda": _normalize_enum(data.get("situacion_vivienda", "NUCLEO_URBANO")),
-            "regimen_ocupacion": _normalize_enum(data.get("regimen_ocupacion", "PROPIEDAD")),
-            "alquiler_vacacional": data.get("alquiler_vacacional", False),
+            "tipo_vivienda": _normalize_enum(data.get("tipo_vivienda", "PISO_EN_ALTO")),
             "uso_vivienda": _normalize_enum(data.get("uso_vivienda", "VIVIENDA_HABITUAL")),
-            "utilizacion_vivienda": _normalize_enum(data.get("utilizacion_vivienda", "VIVIENDA_EXCLUSIVAMENTE")),
-            "numero_personas_vivienda": str(data.get("numero_personas_vivienda", "3")),
+            "regimen_ocupacion": _normalize_enum(data.get("regimen_ocupacion", "PROPIEDAD")),
+            "numero_personas_vivienda": int(data.get("numero_personas_vivienda", 4)),
+            "situacion_vivienda": _normalize_enum(data.get("situacion_vivienda", "NUCLEO_URBANO")),
         },
         "datos_construccion": {
-            "anio_construccion": int(data.get("anio_construccion") or data.get("ano_construccion") or 2010),
-            "superficie_vivienda": int(data.get("superficie_vivienda") or data.get("superficie") or 90),
-            "numero_habitaciones": str(data.get("numero_habitaciones", "3")),
+            "anio_construccion": int(data.get("anio_construccion") or data.get("ano_construccion") or 1997),
+            "superficie_vivienda": int(data.get("superficie_construida") or data.get("superficie") or 160),
+            "capital_continente": int(data.get("capital_continente") or 150000),
+            "capital_contenido": int(data.get("capital_contenido") or 30000),
             "calidad_construccion": _normalize_enum(data.get("calidad_construccion", "NORMAL")),
             "materiales_construccion": _normalize_enum(data.get("materiales_construccion", "SOLIDA_PIEDRAS_LADRILLOS_ETC")),
-            "tipo_tuberias": _normalize_enum(data.get("tipo_tuberias", "POLIPROPILENO")),
-            "vivienda_rehabilitada": data.get("vivienda_rehabilitada", False),
-            "referencia_catastral": data.get("referencia_catastral", ""),
         },
         "direccion": {
-            "codigo_postal": data.get("codigo_postal", ""),
-            "poblacion": data.get("poblacion", ""),
-            "id_tipo_via": data.get("id_tipo_via", "CL"),
-            "nombre_via": data.get("nombre_via", ""),
-            "numero": data.get("numero_calle", "1"),
-            "portal": data.get("portal", ""),
-            "escalera": data.get("escalera", ""),
-            "piso": data.get("piso", ""),
-            "puerta": data.get("puerta", ""),
-            "id_provincia": data.get("id_provincia", ""),
+            "codigo_postal": data.get("codigo_postal", "46025"),
+            "poblacion": data.get("municipio", data.get("poblacion", "VALENCIA")),
+            "nombre_via": data.get("nombre_via", "ANDRES PILES IBARS"),
+            "numero": data.get("numero_calle", "4"),
+            "piso": data.get("piso", "5"),
+            "puerta": data.get("puerta", "13"),
+            "id_provincia": data.get("id_provincia", "46"),
             "id_pais": data.get("id_pais", "108-6"),
-            "descripcion_provincia": data.get("descripcion_provincia", ""),
-            "ajuste_poblacion": {
-                "codigo": "", "descripcion": "", "codigo_postal": "",
-                "provincia": "", "nombre_via": "", "id_municipio": "",
-                "id_poblacion": "", "id_provincia": "", "nombre_municipio": "",
-                "id_zona": "",
-            },
-        },
-        "dependencias_anexas": {
-            "piscinas": data.get("tiene_piscina", False),
         },
         "protecciones": {
-            "puerta_principal": data.get("tipo_puerta", "DE_MADERA_PVC_METALICA_ETC"),
-            "puerta_secundaria": data.get("puerta_secundaria", "NO_TIENE"),
-            "ventanas": data.get("ventanas", "SIN_PROTECCION"),
+            "puerta_principal": data.get("tipo_puerta", "BLINDADA_ACORAZADA"),
             "alarma": data.get("alarma", "SIN_ALARMA"),
-            "alarma_incendio": data.get("alarma_incendio", "SIN_ALARMA"),
-            "alarma_agua": data.get("alarma_agua", "SIN_ALARMA"),
-            "caja_fuerte": data.get("caja_fuerte", "NO_TIENE"),
-            "vigilancia": data.get("vigilancia", "SIN_VIGILANCIA"),
         },
     }
 
@@ -320,6 +300,7 @@ class MerlinClient:
             resp = exc.response
             body = resp.text[:300] if resp is not None else ""
             code = resp.status_code if resp is not None else "?"
+            logger.error(f"[MERLIN] HTTP {code} on {timer_label} | URL: {url} | Body: {body}")
             raise MerlinClientError(
                 f"HTTP {code} on {timer_label}: {body}"
             )
@@ -329,8 +310,24 @@ class MerlinClient:
     def login(self) -> str:
         self._ensure_config()
         logger.info("[MERLIN] Logging in...")
-        # parent = get_current_agent()
-        # with Timer("merlin", "merlin_login", parent=parent):
+        
+        # Base headers to mimic a real browser (Chrome 145)
+        self._session.headers.update({
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "es-ES,es;q=0.9",
+            "Connection": "keep-alive",
+            "Origin": "https://drseguros.merlin.insure",
+            "Referer": "https://drseguros.merlin.insure/login",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36",
+            "sec-ch-ua": '"Not:A-Brand";v="99", "Google Chrome";v="145", "Chromium";v="145"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "Sec-Fetch-Dest": "empty",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Site": "same-origin",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+        })
+
         try:
             resp = self._session.post(
                 f"{self.base_url}/login",
@@ -343,18 +340,31 @@ class MerlinClient:
 
         self._token = resp.headers.get("Authorization")
         if not self._token:
+            # Try to get it from body if not in headers
+            self._token = resp.json().get("token")
+            
+        if not self._token:
             raise MerlinClientError("No Authorization token received from Merlin")
 
-        self._session.headers.update({
-            "Authorization": self._token,
-            "Content-Type": "application/json",
-        })
-        logger.info("[MERLIN] Login successful.")
+        if not self._token.startswith("Bearer "):
+            self._token = f"Bearer {self._token}"
+
+        self._session.headers["Authorization"] = self._token
+        
+        # CRITICAL: Merlin requires fetching user info to fully initialize the session
+        try:
+            logger.info(f"[MERLIN] Fetching user info for {self.username}...")
+            self._session.get(f"{self.base_url}/user", params={"id": self.username}, timeout=self.timeout)
+        except Exception as exc:
+            logger.warning(f"[MERLIN] Failed to fetch user info: {exc}")
+
+        logger.info(f"[MERLIN] Login successful. user={self.username}")
         return self._token
 
     def obtener_aseguradoras(self, subramo: str) -> Dict[str, Any]:
         logger.info(f"[MERLIN] Fetching insurers for '{subramo}'...")
         items = self._request("GET", "/aseguradoras", "merlin_aseguradoras", params={"subramo": subramo})
+        logger.info(f"[MERLIN] Raw aseguradoras response: {len(items)} items")
 
         aseguradoras: Dict[str, Any] = {}
         for item in items:
@@ -373,17 +383,88 @@ class MerlinClient:
         logger.info(f"[MERLIN] Found {len(aseguradoras)} active insurer templates for '{subramo}'.")
         return aseguradoras
 
-    def obtener_proyecto_nuevo(self, plantillas_ids: List[str]) -> Dict[str, Any]:
+    def obtener_afinaciones(self, plantillas_ids: List[str]) -> List[Dict[str, Any]]:
+        """Fetch afinaciones for the given template IDs (replaces old GET /proyecto/nuevo)."""
         ids_str = ",".join(str(i) for i in plantillas_ids)
-        logger.info(f"[MERLIN] Creating new project template (ids={ids_str[:60]}...)")
-        proyecto = self._request(
-            "GET", "/proyecto/nuevo", "merlin_proyecto_nuevo",
+        logger.info(f"[MERLIN] Fetching afinaciones for {len(plantillas_ids)} templates...")
+        return self._request(
+            "GET", "/proyecto/afinaciones", "merlin_proyecto_afinaciones",
             params={"idsPlantillasSeleccionadas": ids_str},
         )
-         # Often the JSON returns them in 'plantillas' or 'aseguradoras'
-        count = len(proyecto.get('aseguradoras', proyecto.get('plantillas', [])))
-        logger.info(f"[MERLIN] Got project template with {count} insurers.")
-        return proyecto
+
+    def crear_proyecto(self, afinaciones: List[Dict[str, Any]], subramo: str) -> Dict[str, Any]:
+        """Create a new project via POST /proyecto with afinaciones."""
+        logger.info(f"[MERLIN] Creating project via POST /proyecto (subramo={subramo})...")
+        
+        # Exact date format from browser trace: [YYYY, M, D, H, M, S, nanoseconds]
+        import datetime
+        now = datetime.datetime.now()
+        instante = [now.year, now.month, now.day, now.hour, now.minute, now.second, now.microsecond * 1000]
+        
+        # Generate a random pasarela ID
+        import random
+        id_pasarela_temp = random.randint(1000000, 9999999)
+        
+        body = {
+            "afinaciones": afinaciones, 
+            "subramo": subramo,
+            "instante_de_creacion": instante,
+            "id_proyecto_en_pasarela": id_pasarela_temp,
+            "usuario": {
+                "id": self.username,
+                "nombre": "DANIEL ROMERO LLINARES",
+                "rol": "ADMINISTRADOR"
+            },
+            "integracion_erp": {
+                "id_proyecto": str(id_pasarela_temp),
+                "fecha_creacion": instante,
+                "fecha_modificacion": instante
+            }
+        }
+        
+        return self._request(
+            "POST", "/proyecto", "merlin_crear_proyecto",
+            json=body,
+        )
+
+    def obtener_proyecto_nuevo(self, plantillas_ids: List[str]) -> Dict[str, Any]:
+        """Create a new project template using the EXACT structure from browser cURL.
+        Note: The browser uses snake_case keys in the POST body for this endpoint.
+        """
+        logger.info(f"[MERLIN] Creating new project with {len(plantillas_ids)} templates via POST (Browser Mimicry)")
+
+        # EXACT body from browser cURL: snake_case keys!
+        body = {
+            "ids_plantillas_seleccionadas": [str(i) for i in plantillas_ids],
+            "ids_plantillas_complementario_seleccionadas": []
+        }
+
+        # EXACT headers from browser cURL
+        headers = {
+            "Accept": "application/json, text/plain, */*",
+            "Content-Type": "application/json",
+            "Referer": "https://drseguros.merlin.insure/project/home/insurers",
+            "Origin": "https://drseguros.merlin.insure",
+        }
+
+        try:
+            proyecto = self._request(
+                "POST", "/proyecto/nuevo", "merlin_proyecto_nuevo",
+                json=body,
+                headers=headers
+            )
+            
+            pasarela_id = proyecto.get("id_proyecto_en_pasarela") or proyecto.get("idProyectoEnPasarela")
+            logger.info(f"[MERLIN] Got project template via POST. Pasarela ID: {pasarela_id}")
+            return proyecto
+            
+        except Exception as exc:
+            logger.warning(f"[MERLIN] POST /proyecto/nuevo failed ({exc}), falling back to afinaciones+POST flow")
+            # Fallback to the manual creation method if the official one fails
+            afinaciones = self.obtener_afinaciones(plantillas_ids)
+            proyecto = self.crear_proyecto(afinaciones, "HOGAR")
+            logger.info(f"[MERLIN] Created project via fallback flow. id={proyecto.get('id')}")
+            return proyecto
 
     def obtener_proyecto(self, id_proyecto: str) -> Dict[str, Any]:
         """Get full project details by MongoDB ID."""
@@ -393,8 +474,16 @@ class MerlinClient:
         )
 
     def guardar_proyecto(self, proyecto: Dict[str, Any]) -> Dict[str, Any]:
-        datos_b = proyecto.get("datosBasicos") or proyecto.get("datos_basicos", {})
-        logger.info(f"[MERLIN] Saving project... datosBasicos keys: {list(datos_b.keys()) if isinstance(datos_b, dict) else 'N/A'}")
+        """Save project to Merlin.
+        For Hogar, we ensure the top-level keys match what the UI expects.
+        """
+        # Ensure we use 'datos_basicos' (snake_case) if that's what worked in creation
+        if "datosBasicos" in proyecto:
+            proyecto["datos_basicos"] = proyecto.pop("datosBasicos")
+            
+        datos_b = proyecto.get("datos_basicos", {})
+        logger.info(f"[MERLIN] Saving project... datos_basicos keys: {list(datos_b.keys()) if isinstance(datos_b, dict) else 'N/A'}")
+        
         result = self._request("PUT", "/proyecto", "merlin_guardar_proyecto", json=proyecto)
         logger.info(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
         return result
@@ -408,15 +497,19 @@ class MerlinClient:
             except: return 0
 
         logger.info(f"[MERLIN] Saving additional Hogar data for pasarela ID {id_pasarela}...")
-        fecha_efecto = _parse_date(data.get("fecha_efecto")) or [2026, 3, 1]
+        
+        # Use simple date format [YYYY, M, D]
+        import datetime
+        now = datetime.datetime.now()
+        fecha_efecto = _parse_date(data.get("fecha_efecto")) or [now.year, now.month, now.day]
 
         datos_adicionales = {
             "fecha": fecha_efecto,
             "capitales": {
-                "continente": _safe_int(data.get("capital_continente")) or 100000,
+                "continente": _safe_int(data.get("capital_continente")) or 150000,
                 "continente_primer_riesgo": None,
                 "obras_reforma": None,
-                "mobiliario_general": _safe_int(data.get("capital_contenido")) or 10000,
+                "mobiliario_general": _safe_int(data.get("capital_contenido")) or 30000,
                 "mobiliario_dependencias_anexas": None,
                 "mobiliario_profesional": None,
                 "vehiculos_en_garaje": None,
@@ -451,10 +544,16 @@ class MerlinClient:
         """Request recommended capitals from all insurers for a HOGAR project."""
         dgs_csv = ",".join(dgs_companias)
         logger.info(f"[MERLIN] Requesting capitals: project={id_proyecto}, dgs={dgs_csv}")
-        return self._request(
-            "GET", "/capitales-recomendados", "merlin_capitales_recomendados",
-            params={"idProyecto": id_proyecto, "dgsCompanias": dgs_csv},
-        )
+        
+        url = f"{self.base_url}/capitales-recomendados"
+        try:
+            resp = self._session.get(url, params={"idProyecto": id_proyecto, "dgsCompanias": dgs_csv}, timeout=self.timeout)
+            resp.raise_for_status()
+            # The response is a raw string (the process ID), not JSON
+            return {"idProcesoPasarela": resp.text.strip().strip('"')}
+        except Exception as exc:
+            logger.error(f"[MERLIN] Error requesting capitals: {exc}")
+            raise MerlinClientError(f"Error requesting capitals: {exc}")
 
     def consultar_estado_capitales(self, id_proceso_pasarela: str, subramo: str = "HOGAR") -> Dict[str, Any]:
         """Poll recommended capitals status."""
@@ -491,42 +590,40 @@ class MerlinClient:
         logger.warning(f"[MERLIN] Capitals poll timed out after {round(time.time() - start, 1)}s.")
         return last_capitales
 
-    def iniciar_tarificacion(self, id_pasarela: str) -> Dict[str, Any]:
+    def iniciar_tarificacion(self, id_proyecto: str) -> Dict[str, Any]:
         """Launch the multi-insurer tarification process for a saved project.
-
-        Calls GET /tarificacion/iniciar?id={id_pasarela}.
+        Uses GET /tarificacion/iniciar?id={mongo_id}.
         """
-        logger.info(f"[MERLIN] Launching tarification for pasarela ID {id_pasarela}...")
+        logger.info(f"[MERLIN] Launching tarification for project ID {id_proyecto}...")
         return self._request(
             "GET", "/tarificacion/iniciar", "merlin_iniciar_tarificacion",
-            params={"id": id_pasarela},
+            params={"id": id_proyecto},
         )
 
-    def consultar_estado_tarificacion(self, process_id: str, mongo_id: str, subramo: str) -> Dict[str, Any]:
+    def consultar_estado_tarificacion(self, mongo_id: str, subramo: str, pasarela_ids: Optional[dict] = None) -> Dict[str, Any]:
         """Check tarification process status and save results to project.
-
-        Uses Spring-style nested query params:
-          GET /tarificacion/estado?idProcesoPasarela.idPasarela2={process_id}&idProyecto.id={mongo_id}&subramo={subramo}
-
-        IMPORTANT: each call to this endpoint persists the latest results
-        into the project document.  The project estado flips to TARIFICADO
-        only after the backend writes the insurer responses.
+        Uses Spring-style nested query params if pasarela_ids are provided,
+        otherwise uses the minimal idProyecto.id as seen in working examples.
         """
-        logger.info(
-            f"[MERLIN] Checking tarification status for process={process_id}, "
-            f"project={mongo_id}, subramo={subramo}..."
-        )
+        params = {
+            "idProyecto.id": mongo_id,
+            "subramo": subramo,
+        }
+        
+        if pasarela_ids:
+            id1 = pasarela_ids.get("id_pasarela1") or pasarela_ids.get("idPasarela1")
+            id2 = pasarela_ids.get("id_pasarela2") or pasarela_ids.get("idPasarela2")
+            if id1: params["idProcesoPasarela.idPasarela1"] = id1
+            if id2: params["idProcesoPasarela.idPasarela2"] = id2
+
+        logger.info(f"[MERLIN] Checking tarification status for project={mongo_id}...")
         return self._request(
             "GET", "/tarificacion/estado", "merlin_estado_tarificacion",
-            params={
-                "idProcesoPasarela.idPasarela2": process_id,
-                "idProyecto.id": mongo_id,
-                "subramo": subramo,
-            },
+            params=params,
         )
 
     def _poll_tarificacion(
-        self, process_id: str, mongo_id: str, subramo: str,
+        self, mongo_id: str, subramo: str, pasarela_ids: Optional[dict] = None,
         max_wait: int = 100, interval: int = 5,
     ) -> bool:
         """Poll tarificacion/estado until finished or timeout."""
@@ -536,9 +633,9 @@ class MerlinClient:
         while (time.time() - start) < max_wait:
             time.sleep(interval)
             try:
-                resp = self.consultar_estado_tarificacion(process_id, mongo_id, subramo)
+                resp = self.consultar_estado_tarificacion(mongo_id, subramo, pasarela_ids)
                 consecutive_errors = 0
-                if resp.get("tarificacionFinalizada", False):
+                if resp.get("tarificacionFinalizada") or resp.get("tarificacion_finalizada"):
                     logger.info(f"[MERLIN] Tarification completed in {round(time.time() - start, 1)}s.")
                     return True
             except Exception as exc:
@@ -632,11 +729,8 @@ class MerlinClient:
 
         try:
             tar_resp = self.iniciar_tarificacion(mongo_id)
-            process_id = tar_resp.get("id_proceso_pasarela", {}).get("id_pasarela2", "")
-            if process_id:
-                tarificacion_ok = self._poll_tarificacion(process_id, mongo_id, subramo, max_wait=max_wait)
-            else:
-                logger.warning("[MERLIN] No process ID returned from iniciar.")
+            pasarela_ids = tar_resp.get("id_proceso_pasarela") or tar_resp.get("idProcesoPasarela")
+            tarificacion_ok = self._poll_tarificacion(mongo_id, subramo, pasarela_ids, max_wait=max_wait)
         except Exception as exc:
             logger.warning(f"[MERLIN] Tarification launch failed: {exc}")
 
@@ -717,9 +811,14 @@ class MerlinClient:
                 return {"success": False, "error": f"No insurers available for {ramo}"}
 
             plantillas_ids = [a["plantilla_id"] for a in aseguradoras.values()]
+            logger.info(f"[MERLIN] {len(aseguradoras)} insurers, {len(plantillas_ids)} templates")
             proyecto = self.obtener_proyecto_nuevo(plantillas_ids)
 
-            datos_basicos = proyecto.get("datosBasicos") or proyecto.get("datos_basicos", {})
+            # Ensure we use 'datos_basicos' (snake_case)
+            if "datosBasicos" in proyecto:
+                proyecto["datos_basicos"] = proyecto.pop("datosBasicos")
+            
+            datos_basicos = proyecto.get("datos_basicos", {})
 
             if ramo == "AUTO":
                 datos_basicos["vehiculo"] = _build_vehiculo(datos)
@@ -729,21 +828,20 @@ class MerlinClient:
                 datos_basicos["conductor_es_tomador"] = datos.get("es_tomador", True)
                 datos_basicos["conductor_es_propietario"] = datos.get("es_propietario", True)
                 datos_basicos["@class"] = DATOS_BASICOS_AUTO_CLASS
+                datos_basicos["class_name"] = DATOS_BASICOS_AUTO_CLASS
             else:
-                datos_basicos["riesgo_hogar"] = _build_riesgo_hogar(datos)
+                # For HOGAR, we use 'vivienda' inside 'datos_basicos'
+                datos_basicos["vivienda"] = _build_riesgo_hogar(datos)
                 datos_basicos["propietario"] = _build_persona(datos, "PROPIETARIO")
                 datos_basicos["@class"] = DATOS_BASICOS_HOGAR_CLASS
+                datos_basicos["class_name"] = DATOS_BASICOS_HOGAR_CLASS
 
             datos_basicos["tomador"] = _build_persona(datos, "TOMADOR")
-
-            if "datosBasicos" in proyecto:
-                proyecto["datosBasicos"] = datos_basicos
-            else:
-                proyecto["datos_basicos"] = datos_basicos
+            proyecto["datos_basicos"] = datos_basicos
 
             result = self.guardar_proyecto(proyecto)
             mongo_id = result.get("id")
-            id_pasarela = result.get("id_proyecto_en_pasarela")
+            id_pasarela = result.get("id_proyecto_en_pasarela") or result.get("idProyectoEnPasarela")
 
             if ramo == "HOGAR" and id_pasarela and mongo_id:
                 capitals_response = self._obtener_capitales_recomendados_hogar(
