@@ -122,8 +122,11 @@ def _normalize_enum(value: str) -> str:
 
 def _build_riesgo_hogar(data: dict) -> dict:
     """Build vivienda dict for datos_basicos (Hogar projects).
-    Matches the structure from the working Colab example.
+    Matches the structure from the browser trace for the UI to show data.
     """
+    import datetime
+    now = datetime.datetime.now()
+    
     return {
         "caracteristicas": {
             "tipo_vivienda": _normalize_enum(data.get("tipo_vivienda", "PISO_EN_ALTO")),
@@ -131,6 +134,7 @@ def _build_riesgo_hogar(data: dict) -> dict:
             "regimen_ocupacion": _normalize_enum(data.get("regimen_ocupacion", "PROPIEDAD")),
             "numero_personas_vivienda": int(data.get("numero_personas_vivienda", 4)),
             "situacion_vivienda": _normalize_enum(data.get("situacion_vivienda", "NUCLEO_URBANO")),
+            "utilizacion_vivienda": _normalize_enum(data.get("utilizacion_vivienda", "VIVIENDA_EXCLUSIVAMENTE")),
         },
         "datos_construccion": {
             "anio_construccion": int(data.get("anio_construccion") or data.get("ano_construccion") or 1997),
@@ -139,6 +143,7 @@ def _build_riesgo_hogar(data: dict) -> dict:
             "capital_contenido": int(data.get("capital_contenido") or 30000),
             "calidad_construccion": _normalize_enum(data.get("calidad_construccion", "NORMAL")),
             "materiales_construccion": _normalize_enum(data.get("materiales_construccion", "SOLIDA_PIEDRAS_LADRILLOS_ETC")),
+            "tipo_tuberias": _normalize_enum(data.get("tipo_tuberias", "POLIPROPILENO")),
         },
         "direccion": {
             "codigo_postal": data.get("codigo_postal", "46025"),
@@ -149,6 +154,7 @@ def _build_riesgo_hogar(data: dict) -> dict:
             "puerta": data.get("puerta", "13"),
             "id_provincia": data.get("id_provincia", "46"),
             "id_pais": data.get("id_pais", "108-6"),
+            "id_tipo_via": data.get("id_tipo_via", "CL"),
         },
         "protecciones": {
             "puerta_principal": data.get("tipo_puerta", "BLINDADA_ACORAZADA"),
@@ -158,7 +164,9 @@ def _build_riesgo_hogar(data: dict) -> dict:
 
 
 def _build_persona(data: dict, tipo_figura: str) -> dict:
-    """Build persona dict for datos_basicos."""
+    """Build persona dict for datos_basicos.
+    Matches the exact structure from the browser trace to avoid nulls in Merlin.
+    """
     nombre = data.get("nombre", "")
     apellido1 = data.get("apellido1", "")
     apellido2 = data.get("apellido2", "")
@@ -170,55 +178,33 @@ def _build_persona(data: dict, tipo_figura: str) -> dict:
     id_provincia = data.get("id_provincia", "")
     nacionalidad = data.get("nacionalidad", "108-6")
 
+    # This structure is what Merlin's Java backend expects to avoid NullPointer
     p: Dict[str, Any] = {
-        "numero_documento": data.get("dni", ""),
-        "tipo_identificacion": data.get("tipo_identificacion", "NIF"),
+        "@c": ".PersonaFisica",
+        "tipo_documento_identidad": data.get("tipo_identificacion", "NIF"),
+        "numero_documento_identidad": data.get("dni", ""),
+        "nombre": nombre,
+        "primer_apellido": apellido1,
+        "segundo_apellido": apellido2,
+        "nombre_completo": nombre_completo,
+        "nombre_completo_normalizado": f"{nombre} {apellido1} {apellido2}".strip(),
         "sexo": data.get("sexo", "MASCULINO"),
         "estado_civil": data.get("estado_civil", "SOLTERO"),
-        "tipo_figura": tipo_figura,
-        "nacionalidad": nacionalidad,
-        "zona_expedicion": nacionalidad,
-        "codigo_postal": codigo_postal,
-        "nombre_completo": nombre_completo,
-        "lugar": poblacion,
-        "cliente": {
-            "tipo": "FISICA",
-            "nombre": nombre,
-            "apellido1": apellido1,
-            "apellido2": apellido2,
-            "nombre_completo": nombre_completo,
-        },
+        "fecha_nacimiento": data.get("fecha_nacimiento", "2000-12-31"),
+        "id_nacionalidad": nacionalidad,
         "direccion": {
             "id_pais": nacionalidad,
             "codigo_postal": codigo_postal,
             "id_tipo_via": data.get("id_tipo_via", "CL"),
             "nombre_via": nombre_via,
             "numero": data.get("numero_calle", ""),
-            "portal": data.get("portal", ""),
-            "escalera": data.get("escalera", ""),
             "piso": data.get("piso", ""),
             "puerta": data.get("puerta", ""),
             "poblacion": poblacion,
             "id_provincia": id_provincia,
-            "descripcion_provincia": data.get("descripcion_provincia", ""),
-            "ajuste_poblacion": {
-                "codigo": "", "descripcion": "", "codigo_postal": "",
-                "provincia": "", "nombre_via": "", "id_municipio": "",
-                "id_poblacion": "", "id_provincia": "", "nombre_municipio": "",
-                "id_zona": "",
-            },
+            "descripcion_provincia": data.get("descripcion_provincia", "Valencia/València"),
         },
     }
-
-    fecha_nac = _parse_date(data.get("fecha_nacimiento"))
-    if fecha_nac:
-        p["fecha_nacimiento"] = fecha_nac
-
-    p["tipo_carnet"] = data.get("tipo_carnet", "B")
-
-    fecha_carnet = _parse_date(data.get("fecha_carnet") or data.get("fecha_expedicion_carnet"))
-    if fecha_carnet:
-        p["fecha_carnet"] = fecha_carnet
 
     if tipo_figura == "CONDUCTOR":
         p["is_innominada"] = False
@@ -477,15 +463,45 @@ class MerlinClient:
         """Save project to Merlin.
         For Hogar, we ensure the top-level keys match what the UI expects.
         """
-        # Ensure we use 'datos_basicos' (snake_case) if that's what worked in creation
+        # Ensure we use 'datos_basicos' (snake_case) as it's the standard for this instance
         if "datosBasicos" in proyecto:
             proyecto["datos_basicos"] = proyecto.pop("datosBasicos")
             
         datos_b = proyecto.get("datos_basicos", {})
+        
+        # CRITICAL: If this is HOGAR, ensure the class names and structure are perfect
+        if proyecto.get("subramo") == "HOGAR" and isinstance(datos_b, dict):
+            datos_b["class_name"] = DATOS_BASICOS_HOGAR_CLASS
+            # Merlin UI often expects 'vivienda' to be at the same level as 'tomador' inside datos_basicos
+            if "vivienda" not in datos_b and "riesgo_hogar" in datos_b:
+                datos_b["vivienda"] = datos_b.pop("riesgo_hogar")
+
         logger.info(f"[MERLIN] Saving project... datos_basicos keys: {list(datos_b.keys()) if isinstance(datos_b, dict) else 'N/A'}")
         
+        # 1. Save the main project object
         result = self._request("PUT", "/proyecto", "merlin_guardar_proyecto", json=proyecto)
-        logger.info(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
+        
+        # 2. For HOGAR, we MUST also call the specific /personas endpoint if we want them to show up in the UI
+        id_pasarela = result.get("id_proyecto_en_pasarela") or result.get("idProyectoEnPasarela")
+        if proyecto.get("subramo") == "HOGAR" and id_pasarela:
+            try:
+                logger.info(f"[MERLIN] Syncing persons for Hogar project {id_pasarela}...")
+                # Fetch the project again from the server to get the full object with all IDs
+                full_project = self.obtener_proyecto(result.get("id"))
+                
+                # Ensure the full_project has the correct keys for the /personas endpoint
+                # The browser trace shows it expects the whole project object
+                self._request(
+                    "PUT", f"/proyectos-hogar/{id_pasarela}/personas", "merlin_sync_personas",
+                    json=full_project 
+                )
+                
+                # Update our result with the synced project to ensure we have the Tomador ID
+                result = full_project
+            except Exception as e:
+                logger.warning(f"[MERLIN] Failed to sync persons: {e}")
+
+        logger.info(f"[MERLIN] Project saved and synced. ID={result.get('id', 'unknown')}")
         return result
 
     def guardar_datos_adicionales_hogar(self, id_pasarela: str, data: dict) -> Dict[str, Any]:
