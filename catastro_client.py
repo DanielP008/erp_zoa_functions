@@ -293,6 +293,26 @@ def consultar_catastro_por_direccion(
     return result
 
 
+def _normalize_sigla(tipo_via: str) -> str:
+    """Normalizes street type (Sigla) to Catastro abbreviations."""
+    mapping = {
+        "CALLE": "CL",
+        "AVENIDA": "AV",
+        "PASEO": "PS",
+        "PLAZA": "PZ",
+        "CARRETERA": "CT",
+        "RONDA": "RD",
+        "TRAVESIA": "TR",
+        "CAMINO": "CM",
+        "CARRER": "CL",
+        "AVINGUDA": "AV",
+        "PLACA": "PZ",
+        "PASSATGE": "PS",
+    }
+    v = tipo_via.strip().upper()
+    return mapping.get(v, v)
+
+
 def _try_catastro_address(
     url: str,
     provincia: str,
@@ -307,7 +327,7 @@ def _try_catastro_address(
 ) -> Dict[str, Any]:
     """Inner loop: try municipality + street variants for a single query."""
     common_params = {
-        "Sigla": tipo_via.strip().upper(),
+        "Sigla": _normalize_sigla(tipo_via),
         "Numero": str(numero).strip(),
         "Bloque": (bloque or "").strip(),
         "Escalera": (escalera or "").strip(),
@@ -318,6 +338,7 @@ def _try_catastro_address(
     street_variants = _generate_street_name_variants(nombre_via)
     muni_variants = _generate_municipality_variants(municipio)
     last_result: Dict[str, Any] = {"success": False, "error": "Sin resultados"}
+    best_result: Optional[Dict[str, Any]] = None
 
     for muni in muni_variants:
         for variant in street_variants:
@@ -362,10 +383,15 @@ def _try_catastro_address(
             if last_result.get("success"):
                 return last_result
 
+            # Store the best error found (e.g., Number error is better than Street error)
+            error_msg = last_result.get("error", "").upper()
+            if "NUMERO NO EXISTE" in error_msg:
+                best_result = last_result
+            elif "INMUEBLE" in error_msg:
+                best_result = last_result
+
             # Store the municipality that was accepted for later use
             last_result["_resolved_municipio"] = muni
-
-            error_msg = last_result.get("error", "").upper()
 
             # Province error -> no point retrying
             if "PROVINCIA NO EXISTE" in error_msg:
@@ -395,7 +421,7 @@ def _try_catastro_address(
             # Other errors -> return immediately
             return last_result
 
-    return last_result
+    return best_result if best_result else last_result
 
 
 def _parse_catastro_response(xml_text: str) -> Dict[str, Any]:
