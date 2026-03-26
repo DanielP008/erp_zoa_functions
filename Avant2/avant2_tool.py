@@ -468,8 +468,9 @@ def create_retarificacion_avant2_project_tool(datos: dict, context: dict = None)
         logger.info(f"[AVANT2_TOOL] Created project: {project_id}")
             
         # 4. Wait for tarification to complete and get the full project containing quotes/offers.
+        # Increased wait time to 20s to ensure slower insurers like Reale respond.
         import time
-        time.sleep(5) 
+        time.sleep(20) 
         
         final_project = client.get_insurance_project(project_id)
         
@@ -486,7 +487,8 @@ def create_retarificacion_avant2_project_tool(datos: dict, context: dict = None)
             "num_ofertas": len(mapped_offers),
             "num_errores": len(errors),
             "ofertas": mapped_offers,
-            "errors": [{"aseguradora": e.get("product", {}).get("vendor", {}).get("name"), "mensajes": e.get("messages", [])} for e in errors][:5]
+            "errors": [{"aseguradora": e.get("product", {}).get("vendor", {}).get("name"), "mensajes": e.get("messages", [])} for e in errors][:5],
+            "raw_response": final_project # Include the full original response from Codeoscopic
         }
         
         return json.dumps(result, ensure_ascii=False)
