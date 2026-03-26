@@ -337,31 +337,52 @@ def _build_burial_risk(llm_data: dict) -> dict:
     }
 
 def _extract_offers_from_avant2_response(insurances_response: dict) -> list:
-    """Extract standard offers format from the complex Codeoscopic response."""
+    """Extract standard offers format from the complex Codeoscopic response.
+    
+    Tries to use 'offers' first, then falls back to 'mainQuotes' if 'offers' is empty.
+    """
     offers_out = []
     raw_offers = insurances_response.get("offers", [])
     raw_quotes = insurances_response.get("mainQuotes", [])
     
-    # Map quotes by id for easy lookup
-    quotes_map = {q.get("id"): q for q in raw_quotes}
+    if raw_offers:
+        # Map quotes by id for easy lookup
+        quotes_map = {q.get("id"): q for q in raw_quotes}
 
-    for offer in raw_offers:
-        main_quote_ref = offer.get("mainQuote", {})
-        quote_id = main_quote_ref.get("id")
-        
-        if quote_id and quote_id in quotes_map:
-            quote = quotes_map[quote_id]
+        for offer in raw_offers:
+            main_quote_ref = offer.get("mainQuote", {})
+            quote_id = main_quote_ref.get("id")
+            
+            if quote_id and quote_id in quotes_map:
+                quote = quotes_map[quote_id]
+                product = quote.get("product", {})
+                vendor = product.get("vendor", {})
+                modality = product.get("modality", {})
+                
+                offers_out.append({
+                    "nombre_aseguradora": f"{vendor.get('name', '')} {product.get('name', '')}".strip(),
+                    "dgs": "", # Not easily available in sample
+                    "descripcion": modality.get("name", ""),
+                    "prima_anual": float(offer.get("totalPremium", 0.0)),
+                    "contratable": not quote.get("estimate", False),
+                    "nombre_completo": f"{vendor.get('name', '')} {modality.get('name', '')}",
+                })
+    else:
+        # Fallback to mainQuotes if no official 'offers' yet (common in fast/partial responses)
+        for quote in raw_quotes:
             product = quote.get("product", {})
             vendor = product.get("vendor", {})
-            modality = product.get("modality", {})
+            
+            # Use annualPremium if available, otherwise premium
+            price = quote.get("annualPremium") or quote.get("premium") or 0.0
             
             offers_out.append({
                 "nombre_aseguradora": f"{vendor.get('name', '')} {product.get('name', '')}".strip(),
-                "dgs": "", # Not easily available in sample
-                "descripcion": modality.get("name", ""),
-                "prima_anual": float(offer.get("totalPremium", 0.0)),
-                "contratable": not quote.get("estimate", False), # If it's an estimate, it might not be strictly contratable yet
-                "nombre_completo": f"{vendor.get('name', '')} {modality.get('name', '')}",
+                "dgs": "",
+                "descripcion": product.get("name", ""),
+                "prima_anual": float(price),
+                "contratable": not quote.get("estimate", False),
+                "nombre_completo": f"{vendor.get('name', '')} {product.get('name', '')}",
             })
 
     offers_out.sort(key=lambda x: x["prima_anual"])
