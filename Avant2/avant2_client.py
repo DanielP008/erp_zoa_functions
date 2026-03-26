@@ -35,7 +35,7 @@ class Avant2Client:
         self.client_secret = config.get("pass")  # Equivalent to client_secret
         self.x_user_email = config.get("email") # Required for some Codeoscopic endpoints
         
-        self.timeout = config.get("timeout", 60)
+        self.timeout = config.get("timeout", 180)
         self._session = requests.Session()
         
         self.access_token: Optional[str] = None

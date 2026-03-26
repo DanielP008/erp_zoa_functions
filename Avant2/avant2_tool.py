@@ -476,6 +476,8 @@ def create_retarificacion_avant2_project_tool(datos: dict, context: dict = None)
         payload = _build_avant2_payload(datos)
         
         # 3. Create the project via POST /insurances
+        # This is a synchronous call: Codeoscopic blocks until all insurers respond.
+        # The response already contains mainQuotes and offers.
         project_response = client.create_insurance_project(payload)
         project_id = str(project_response.get("id"))
         
@@ -488,12 +490,8 @@ def create_retarificacion_avant2_project_tool(datos: dict, context: dict = None)
             
         logger.info(f"[AVANT2_TOOL] Created project: {project_id}")
             
-        # 4. Wait for tarification to complete and get the full project containing quotes/offers.
-        # Increased wait time to 20s to ensure slower insurers like Reale respond.
-        import time
-        time.sleep(20) 
-        
-        final_project = client.get_insurance_project(project_id)
+        # Use the POST response directly (it already contains all quotes/offers)
+        final_project = project_response
         
         # Extract offers and format them so the LLM output can be standard
         mapped_offers = _extract_offers_from_avant2_response(final_project)
