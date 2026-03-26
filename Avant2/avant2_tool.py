@@ -80,9 +80,11 @@ def _build_avant2_payload(llm_data: dict) -> dict:
 
 def _build_person(llm_data: dict, person_type: str) -> dict:
     """Map LLM generic person to Codeoscopic Person."""
+    # Use the specific person data (e.g., 'propietario') if it exists,
+    # otherwise fallback to the root llm_data (the policyholder/default person)
     person_data = llm_data.get(person_type)
-    if not person_data and person_type == "tomador":
-        person_data = llm_data # Fallback if flat
+    if not person_data:
+        person_data = llm_data
         
     doc = str(person_data.get("dni", person_data.get("numero_documento", "")))
     doc_type = "Nie" if doc.startswith(("X", "Y", "Z")) else "Cif" if len(doc) == 9 and doc[0].isalpha() and doc[0] not in ('X', 'Y', 'Z') else "Dni"
@@ -152,6 +154,9 @@ def _build_person(llm_data: dict, person_type: str) -> dict:
 def _build_auto_risk(llm_data: dict) -> dict:
     """Map LLM generic auto data to Codeoscopic Car risk."""
     
+    # Check if tomador exists or use llm_data as fallback
+    tomador = llm_data.get("tomador") or llm_data
+    
     # This structure is highly nested and requires IDs for categories (like Code, PostalCode, etc.)
     risk_obj = {
         "vehicle": {
@@ -162,7 +167,7 @@ def _build_auto_risk(llm_data: dict) -> dict:
         "registrationDate": llm_data.get("fecha_matriculacion", "2018-03-08"),
         "purchaseDate": llm_data.get("fecha_compra", "2018-03-08"),
         "circulationAddress": {
-            "postalCode": llm_data.get("tomador", {}).get("codigo_postal", "08013"),
+            "postalCode": tomador.get("codigo_postal", "08013"),
             "town": {
                 "id": 3679 # Default/Placeholder mapped ID
             }
@@ -208,26 +213,33 @@ def _build_home_risk(llm_data: dict) -> dict:
             "roadName": llm_data.get("nombre_via", "Direccion"),
             "roadNumber": str(llm_data.get("numero_calle", "1")),
         },
-        "yearBuilt": llm_data.get("anio_construccion", 2000),
+        "location": {"id": "CityCentre"},
+        "buildingType": {"id": "MiddleFloor"},
+        "floorId": 1,
+        "occupancy": {"id": "MainResidence"},
+        "use": {"id": "Owner"},
+        "yearBuilt": llm_data.get("anio_construccion", 1995),
         "floorArea": llm_data.get("superficie_vivienda", 90),
         "rooms": int(llm_data.get("numero_habitaciones", 3)),
-        "buildingType": {"id": "Flat"}, # Base mapping, needs translation from PISO_EN_ALTO, etc.
-        "use": {"id": "MainResidence"}, 
-        "occupancy": {"id": "Owner"},
-        "location": {"id": "Urban"},
-        "materials": {"id": "Solid"},
+        "reformed": False,
+        "materials": {"id": "NonCombustible"},
         "buildQuality": {"id": "Normal"},
-        "alarm": {"id": "None"},
         "securityMainDoor": True,
+        "secondaryDoorsType": {
+            "id": "NonReinforcedOtherDoor"
+        },
         "securityWindows": False,
+        "alarm": {"id": "NoAlarm"},
+        "securityGuard": False,
         "gatedCommunity": False,
-        "settlementType": {"id": "ReplacementCost"},
-        "buildingsLimit": llm_data.get("capital_continente", 90000),
-        "contentsLimit": llm_data.get("capital_contenido", 25000),
-        "jewelsInSafeBoxLimit": llm_data.get("joyas_caja_fuerte", 0),
-        "jewelsOutSafeBoxLimit": llm_data.get("joyas_fuera_caja", 0),
-        "highValueItemsLimit": llm_data.get("objetos_valor", 0),
-        "numberOfDangerousDogs": 0
+        "numberOfDangerousDogs": 0,
+        "settlementType": {"id": "ReplacementValue"},
+        "jewelsInSafeBoxLimit": 0,
+        "jewelsOutSafeBoxLimit": 0,
+        "highValueItemsLimit": 0,
+        "buildingsLimit": llm_data.get("capital_continente", 150000),
+        "contentsLimit": llm_data.get("capital_contenido", 30000),
+        "owner": _build_person(llm_data, "tomador")
     }
     
     # Translation heuristic for building types if present
@@ -241,6 +253,10 @@ def _build_home_risk(llm_data: dict) -> dict:
 
 def _build_motorcycle_risk(llm_data: dict) -> dict:
     """Map LLM generic moto data to Codeoscopic Motorcycle risk."""
+    
+    # Check if tomador exists or use llm_data as fallback
+    tomador = llm_data.get("tomador") or llm_data
+
     risk_obj = {
         "vehicle": {
             "code": llm_data.get("codigo_vehiculo", "00000000000") # Base7 mapping
@@ -249,7 +265,7 @@ def _build_motorcycle_risk(llm_data: dict) -> dict:
         "registrationDate": llm_data.get("fecha_matriculacion", "2020-01-01"),
         "purchaseDate": llm_data.get("fecha_compra", "2020-01-01"),
         "circulationAddress": {
-            "postalCode": llm_data.get("tomador", {}).get("codigo_postal", "08013"),
+            "postalCode": tomador.get("codigo_postal", "08013"),
             "town": {"id": 3679}
         },
         "kilometersPerYear": llm_data.get("kilometros_anuales", 5000),

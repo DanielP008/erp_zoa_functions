@@ -1,62 +1,167 @@
 {
-    "insuranceLine": {
-        "id": "Home"
+  "insuranceLine": {
+    "id": "Home"
+  },
+  "effectiveDate": "2026-04-15",
+  "holder": {
+    "identificationDocument": {
+      "type": {
+        "id": "Dni"
+      },
+      "id": "72464862G"
     },
-    "effectiveDate": "2026-04-15",
-    "holder": {
-        "identificationDocument": {
-            "type": {
-                "id": "Dni"
-            },
-            "id": "72464862G"
-        },
-        "name": "Juan",
-        "surname": "Pérez",
-        "gender": {
-            "id": "Male"
-        },
-        "birthDate": "1980-01-01",
-        "phones": [
-            {
-                "number": "676112233"
-            }
-        ],
-        "emails": [
-            {
-                "address": "juan.perez@email.com"
-            }
-        ],
-        "addresses": [
-            {
-                "postalCode": "08013",
-                "town": {
-                    "id": 3679
-                }
-            }
-        ]
+    "name": "Juan",
+    "surname": "Pérez",
+    "surname2": "Sánchez",
+    "maritalStatus": {
+      "id": "Single"
     },
-    "risk": {
-        "address": {
-            "postalCode": "08013",
-            "town": {
-                "id": 3679
-            },
-            "roadType": {
-                "id": "Calle"
-            },
-            "roadName": "Principal",
-            "roadNumber": "123"
+    "gender": {
+      "id": "Male"
+    },
+    "birthCountry": {
+      "code": "ESP"
+    },
+    "birthDate": "1980-01-01",
+    "phones": [
+      {
+        "number": "676112233",
+        "primary": true
+      }
+    ],
+    "emails": [
+      {
+        "address": "juan.perez@email.com",
+        "primary": true
+      }
+    ],
+    "addresses": [
+      {
+        "postalCode": "08013",
+        "town": {
+          "id": 3679
         },
-        "propertyType": {
-            "id": "Apartment"
+        "roadType": {
+          "id": "Calle"
         },
-        "occupancyType": {
-            "id": "PrimaryResidence"
-        },
-        "buildYear": 1995,
-        "squareMeters": 110,
-        "tenantRisk": false,
-        "buildingValue": 120000,
-        "contentsValue": 60000
+        "roadName": "Pilar",
+        "roadNumber": "1",
+        "primary": true
+      }
+    ],
+    "employmentStatus": {
+      "id": "Employee"
+    },
+    "economicOccupation": {
+      "code": "2612"
     }
+  },
+  "risk": {
+    "location": {
+      "id": "CityCentre"
+    },
+    "buildingType": {
+      "id": "MiddleFloor"
+    },
+    "floorId": 1,
+    "occupancy": {
+      "id": "MainResidence"
+    },
+    "use": {
+      "id": "Owner"
+    },
+    "floorArea": 90,
+    "rooms": 3,
+    "yearBuilt": 1995,
+    "reformed": false,
+    "materials": {
+      "id": "NonCombustible"
+    },
+    "buildQuality": {
+      "id": "Normal"
+    },
+    "securityMainDoor": true,
+    "secondaryDoorsType": {
+      "id": "NonReinforcedOtherDoor"
+    },
+    "securityWindows": false,
+    "alarm": {
+      "id": "NoAlarm"
+    },
+    "securityGuard": false,
+    "gatedCommunity": false,
+    "numberOfDangerousDogs": 0,
+    "settlementType": {
+      "id": "ReplacementValue"
+    },
+    "jewelsInSafeBoxLimit": 0,
+    "jewelsOutSafeBoxLimit": 0,
+    "highValueItemsLimit": 0,
+    "buildingsLimit": 150000,
+    "contentsLimit": 30000,
+    "address": {
+      "postalCode": "08013",
+      "town": {
+        "id": 3679
+      },
+      "roadType": {
+        "id": "Calle"
+      },
+      "roadName": "Principal",
+      "roadNumber": "123"
+    },
+    "owner": {
+      "identificationDocument": {
+        "type": {
+          "id": "Dni"
+        },
+        "id": "72464862G"
+      },
+      "name": "Juan",
+      "surname": "Pérez",
+      "surname2": "Sánchez",
+      "maritalStatus": {
+        "id": "Single"
+      },
+      "gender": {
+        "id": "Male"
+      },
+      "birthCountry": {
+        "code": "ESP"
+      },
+      "birthDate": "1980-01-01",
+      "phones": [
+        {
+          "number": "676112233",
+          "primary": true
+        }
+      ],
+      "emails": [
+        {
+          "address": "juan.perez@email.com",
+          "primary": true
+        }
+      ],
+      "addresses": [
+        {
+          "postalCode": "08013",
+          "town": {
+            "id": 3679
+          },
+          "roadType": {
+            "id": "Calle"
+          },
+          "roadName": "Pilar",
+          "roadNumber": "1",
+          "primary": true
+        }
+      ],
+      "employmentStatus": {
+        "id": "Employee"
+      },
+      "economicOccupation": {
+        "code": "2612"
+      }
+    }
+  }
 }

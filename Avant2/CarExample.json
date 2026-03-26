@@ -1,129 +1,200 @@
 {
-    "insuranceLine": {
-        "id": "Car"
+  "insuranceLine": {
+    "id": "Car"
+  },
+  "effectiveDate": "2026-04-15",
+  "holder": {
+    "identificationDocument": {
+      "type": {
+        "id": "Dni"
+      },
+      "id": "72464862G"
     },
-    "effectiveDate": "2026-04-15",
-    "holder": {
-        "identificationDocument": {
-            "type": {
-                "id": "Dni"
-            },
-            "id": "72464862G"
-        },
-        "name": "Juan",
-        "surname": "Pérez",
-        "gender": {
-            "id": "Male"
-        },
-        "birthDate": "1980-01-01",
-        "phones": [
-            {
-                "number": "676112233"
-            }
-        ],
-        "emails": [
-            {
-                "address": "juan.perez@email.com"
-            }
-        ],
-        "addresses": [
-            {
-                "postalCode": "08013",
-                "town": {
-                    "id": 3679
-                }
-            }
-        ]
+    "name": "Juan",
+    "surname": "Pérez",
+    "surname2": "Sánchez",
+    "maritalStatus": {
+      "id": "Single"
     },
-    "risk": {
-        "vehicle": {
-            "code": "00080160927"
+    "gender": {
+      "id": "Male"
+    },
+    "birthCountry": {
+      "code": "ESP"
+    },
+    "birthDate": "1980-01-01",
+    "phones": [
+      {
+        "number": "676112233",
+        "primary": true
+      }
+    ],
+    "emails": [
+      {
+        "address": "juan.perez@email.com",
+        "primary": true
+      }
+    ],
+    "addresses": [
+      {
+        "postalCode": "08013",
+        "town": {
+          "id": 3679
         },
-        "circulationAddress": {
-            "postalCode": "08013",
-            "town": {
-                "id": 3679
-            }
+        "roadType": {
+          "id": "Calle"
         },
-        "garageType": {
-            "id": "CommunalParking"
+        "roadName": "Pilar",
+        "roadNumber": "1",
+        "primary": true
+      }
+    ],
+    "drivingLicenses": [
+      {
+        "type": {
+          "id": "B"
         },
-        "lightTrailer": false,
-        "previouslyInsured": false,
-        "owner": {
-            "identificationDocument": {
-                "type": {
-                    "id": "Dni"
-                },
-                "id": "72464862G"
-            },
-            "name": "Juan",
-            "surname": "Pérez",
-            "gender": {
-                "id": "Male"
-            },
-            "birthDate": "1980-01-01",
-            "phones": [
-                {
-                    "number": "676112233"
-                }
-            ],
-            "emails": [
-                {
-                    "address": "juan.perez@email.com"
-                }
-            ],
-            "addresses": [
-                {
-                    "postalCode": "08013",
-                    "town": {
-                        "id": 3679
-                    }
-                }
-            ]
-        },
-        "primaryDriver": {
-            "identificationDocument": {
-                "type": {
-                    "id": "Dni"
-                },
-                "id": "72464862G"
-            },
-            "name": "Juan",
-            "surname": "Pérez",
-            "gender": {
-                "id": "Male"
-            },
-            "birthDate": "1980-01-01",
-            "phones": [
-                {
-                    "number": "676112233"
-                }
-            ],
-            "emails": [
-                {
-                    "address": "juan.perez@email.com"
-                }
-            ],
-            "addresses": [
-                {
-                    "postalCode": "08013",
-                    "town": {
-                        "id": 3679
-                    }
-                }
-            ],
-            "drivingLicenses": [
-                {
-                    "type": {
-                        "id": "B"
-                    },
-                    "date": "2000-01-01",
-                    "issuingZone": {
-                        "id": "Spain"
-                    }
-                }
-            ]
+        "date": "2000-01-01",
+        "issuingZone": {
+          "id": "Spain"
         }
+      }
+    ]
+  },
+  "risk": {
+    "vehicle": {
+      "code": "00080160927"
+    },
+    "registrationPlate": "7281KJC",
+    "registrationDate": "2018-03-08",
+    "purchaseDate": "2018-03-08",
+    "kilometersPerYear": 10000,
+    "circulationAddress": {
+      "postalCode": "08013",
+      "town": {
+        "id": 3679
+      }
+    },
+    "garageType": {
+      "id": "CommunalParking"
+    },
+    "lightTrailer": false,
+    "previouslyInsured": false,
+    "owner": {
+      "identificationDocument": {
+        "type": {
+          "id": "Dni"
+        },
+        "id": "72464862G"
+      },
+      "name": "Juan",
+      "surname": "Pérez",
+      "surname2": "Sánchez",
+      "maritalStatus": {
+        "id": "Single"
+      },
+      "gender": {
+        "id": "Male"
+      },
+      "birthCountry": {
+        "code": "ESP"
+      },
+      "birthDate": "1980-01-01",
+      "phones": [
+        {
+          "number": "676112233",
+          "primary": true
+        }
+      ],
+      "emails": [
+        {
+          "address": "juan.perez@email.com",
+          "primary": true
+        }
+      ],
+      "addresses": [
+        {
+          "postalCode": "08013",
+          "town": {
+            "id": 3679
+          },
+          "roadType": {
+            "id": "Calle"
+          },
+          "roadName": "Pilar",
+          "roadNumber": "1",
+          "primary": true
+        }
+      ],
+      "drivingLicenses": [
+        {
+          "type": {
+            "id": "B"
+          },
+          "date": "2000-01-01",
+          "issuingZone": {
+            "id": "Spain"
+          }
+        }
+      ]
+    },
+    "primaryDriver": {
+      "identificationDocument": {
+        "type": {
+          "id": "Dni"
+        },
+        "id": "72464862G"
+      },
+      "name": "Juan",
+      "surname": "Pérez",
+      "surname2": "Sánchez",
+      "maritalStatus": {
+        "id": "Single"
+      },
+      "gender": {
+        "id": "Male"
+      },
+      "birthCountry": {
+        "code": "ESP"
+      },
+      "birthDate": "1980-01-01",
+      "phones": [
+        {
+          "number": "676112233",
+          "primary": true
+        }
+      ],
+      "emails": [
+        {
+          "address": "juan.perez@email.com",
+          "primary": true
+        }
+      ],
+      "addresses": [
+        {
+          "postalCode": "08013",
+          "town": {
+            "id": 3679
+          },
+          "roadType": {
+            "id": "Calle"
+          },
+          "roadName": "Pilar",
+          "roadNumber": "1",
+          "primary": true
+        }
+      ],
+      "drivingLicenses": [
+        {
+          "type": {
+            "id": "B"
+          },
+          "date": "2000-01-01",
+          "issuingZone": {
+            "id": "Spain"
+          }
+        }
+      ]
     }
+  }
 }
