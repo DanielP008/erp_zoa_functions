@@ -1,167 +1,19 @@
 {
-  "insuranceLine": {
-    "id": "Home"
-  },
-  "effectiveDate": "2026-04-15",
-  "holder": {
-    "identificationDocument": {
-      "type": {
-        "id": "Dni"
-      },
-      "id": "72464862G"
-    },
-    "name": "Juan",
-    "surname": "Pérez",
-    "surname2": "Sánchez",
-    "maritalStatus": {
-      "id": "Single"
-    },
-    "gender": {
-      "id": "Male"
-    },
-    "birthCountry": {
-      "code": "ESP"
-    },
-    "birthDate": "1980-01-01",
-    "phones": [
-      {
-        "number": "676112233",
-        "primary": true
-      }
-    ],
-    "emails": [
-      {
-        "address": "juan.perez@email.com",
-        "primary": true
-      }
-    ],
-    "addresses": [
-      {
-        "postalCode": "08013",
-        "town": {
-          "id": 3679
-        },
-        "roadType": {
-          "id": "Calle"
-        },
-        "roadName": "Pilar",
-        "roadNumber": "1",
-        "primary": true
-      }
-    ],
-    "employmentStatus": {
-      "id": "Employee"
-    },
-    "economicOccupation": {
-      "code": "2612"
-    }
-  },
-  "risk": {
-    "location": {
-      "id": "CityCentre"
-    },
-    "buildingType": {
-      "id": "MiddleFloor"
-    },
-    "floorId": 1,
-    "occupancy": {
-      "id": "MainResidence"
-    },
-    "use": {
-      "id": "Owner"
-    },
-    "floorArea": 90,
-    "rooms": 3,
-    "yearBuilt": 1995,
-    "reformed": false,
-    "materials": {
-      "id": "NonCombustible"
-    },
-    "buildQuality": {
-      "id": "Normal"
-    },
-    "securityMainDoor": true,
-    "secondaryDoorsType": {
-      "id": "NonReinforcedOtherDoor"
-    },
-    "securityWindows": false,
-    "alarm": {
-      "id": "NoAlarm"
-    },
-    "securityGuard": false,
-    "gatedCommunity": false,
-    "numberOfDangerousDogs": 0,
-    "settlementType": {
-      "id": "ReplacementValue"
-    },
-    "jewelsInSafeBoxLimit": 0,
-    "jewelsOutSafeBoxLimit": 0,
-    "highValueItemsLimit": 0,
-    "buildingsLimit": 150000,
-    "contentsLimit": 30000,
-    "address": {
-      "postalCode": "08013",
-      "town": {
-        "id": 3679
-      },
-      "roadType": {
-        "id": "Calle"
-      },
-      "roadName": "Principal",
-      "roadNumber": "123"
-    },
-    "owner": {
-      "identificationDocument": {
-        "type": {
-          "id": "Dni"
-        },
-        "id": "72464862G"
-      },
-      "name": "Juan",
-      "surname": "Pérez",
-      "surname2": "Sánchez",
-      "maritalStatus": {
-        "id": "Single"
-      },
-      "gender": {
-        "id": "Male"
-      },
-      "birthCountry": {
-        "code": "ESP"
-      },
-      "birthDate": "1980-01-01",
-      "phones": [
-        {
-          "number": "676112233",
-          "primary": true
-        }
-      ],
-      "emails": [
-        {
-          "address": "juan.perez@email.com",
-          "primary": true
-        }
-      ],
-      "addresses": [
-        {
-          "postalCode": "08013",
-          "town": {
-            "id": 3679
-          },
-          "roadType": {
-            "id": "Calle"
-          },
-          "roadName": "Pilar",
-          "roadNumber": "1",
-          "primary": true
-        }
-      ],
-      "employmentStatus": {
-        "id": "Employee"
-      },
-      "economicOccupation": {
-        "code": "2612"
-      }
-    }
-  }
+    "ramo": "HOGAR",
+    "fecha_efecto": "2026-04-15",
+    "dni": "72464862G",
+    "nombre": "Juan",
+    "apellido1": "Pérez",
+    "apellido2": "Sánchez",
+    "telefono": "676112233",
+    "email": "juan.perez@email.com",
+    "codigo_postal": "08013",
+    "id_tipo_via": "Calle",
+    "nombre_via": "Mallorca",
+    "numero_calle": "100",
+    "poblacion": "Barcelona",
+    "descripcion_provincia": "Barcelona",
+    "tipo_vivienda": "PISO_EN_ALTO",
+    "capital_continente": 150000,
+    "capital_contenido": 30000
 }

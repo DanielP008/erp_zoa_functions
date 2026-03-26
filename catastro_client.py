@@ -349,84 +349,76 @@ def _try_catastro_address(
 
     for muni in muni_variants:
         for variant in street_variants:
-            params = {
-                **common_params,
-                "Provincia": provincia,
-                "Municipio": muni,
-                "Calle": variant,
-            }
-            logger.info(
-                f"[CATASTRO] Querying: {params['Provincia']}, {params['Municipio']}, "
-                f"{params['Sigla']} {params['Calle']} {params['Numero']}"
-            )
+            # Try with original Sigla first, then with empty Sigla if it fails
+            siglas_to_try = [common_params["Sigla"], ""] if common_params["Sigla"] else [""]
+            
+            for current_sigla in siglas_to_try:
+                params = {
+                    **common_params,
+                    "Provincia": provincia,
+                    "Municipio": muni,
+                    "Calle": variant,
+                    "Sigla": current_sigla
+                }
+                logger.info(
+                    f"[CATASTRO] Querying: {params['Provincia']}, {params['Municipio']}, "
+                    f"Sigla='{params['Sigla']}' Calle='{params['Calle']}' Num='{params['Numero']}'"
+                )
 
-            # Technical retry loop for network/connection errors
-            max_retries = 2
-            resp = None
-            for attempt in range(max_retries + 1):
-                try:
-                    with requests.Session() as session:
-                        session.headers.update(CATASTRO_HEADERS)
-                        resp = session.get(url, params=params, timeout=CATASTRO_TIMEOUT)
-                        resp.raise_for_status()
-                    break # Success, exit retry loop
-                except Exception as exc:
-                    if attempt < max_retries:
-                        wait_time = 2.0 * (attempt + 1)
-                        logger.warning(f"[CATASTRO] Connection attempt {attempt + 1} failed: {exc}. Retrying in {wait_time}s...")
-                        time.sleep(wait_time)
-                    else:
-                        logger.error(f"[CATASTRO] All {max_retries + 1} attempts failed for variant '{variant}': {exc}")
-                        # If it's a persistent connection error, we might want to return early
-                        if "Connection" in str(exc) or "RemoteDisconnected" in str(exc) or "reset by peer" in str(exc):
-                             return {"success": False, "error": f"Error de conexión persistente con el Catastro: {exc}"}
-                        continue # Try next street/muni variant
+                # Technical retry loop for network/connection errors
+                max_retries = 2
+                resp = None
+                for attempt in range(max_retries + 1):
+                    try:
+                        # Use a new session per request to avoid session-based blocking
+                        with requests.Session() as session:
+                            session.headers.update(CATASTRO_HEADERS)
+                            resp = session.get(url, params=params, timeout=CATASTRO_TIMEOUT)
+                            resp.raise_for_status()
+                        break # Success, exit retry loop
+                    except Exception as exc:
+                        if attempt < max_retries:
+                            wait_time = 2.0 * (attempt + 1)
+                            logger.warning(f"[CATASTRO] Connection attempt {attempt + 1} failed: {exc}. Retrying in {wait_time}s...")
+                            time.sleep(wait_time)
+                        else:
+                            logger.error(f"[CATASTRO] All {max_retries + 1} attempts failed for variant '{variant}' with Sigla '{current_sigla}': {exc}")
+                            continue 
 
-            if not resp:
-                continue
+                if not resp:
+                    continue
 
-            last_result = _parse_catastro_response(resp.text)
+                last_result = _parse_catastro_response(resp.text)
 
-            if last_result.get("success"):
-                return last_result
+                if last_result.get("success"):
+                    return last_result
 
-            # Store the best error found (e.g., Number error is better than Street error)
-            error_msg = last_result.get("error", "").upper()
-            if "NUMERO NO EXISTE" in error_msg:
-                best_result = last_result
-            elif "INMUEBLE" in error_msg:
-                best_result = last_result
+                # Store the best error found
+                error_msg = last_result.get("error", "").upper()
+                if "NUMERO NO EXISTE" in error_msg:
+                    best_result = last_result
+                elif "INMUEBLE" in error_msg:
+                    best_result = last_result
+                elif last_result.get("multiple_results"):
+                    best_result = last_result
 
-            # Store the municipality that was accepted for later use
-            last_result["_resolved_municipio"] = muni
+                # Store the municipality that was accepted
+                last_result["_resolved_municipio"] = muni
 
-            # Province error -> no point retrying
-            if "PROVINCIA NO EXISTE" in error_msg:
-                logger.error(f"[CATASTRO] Province '{provincia}' not recognized")
-                return last_result
+                # If the error is "Street does not exist" with a sigla, try next sigla (empty)
+                if "VIA NO EXISTE" in error_msg and current_sigla:
+                    logger.info(f"[CATASTRO] Street '{variant}' not found with Sigla '{current_sigla}', trying without Sigla...")
+                    continue
 
-            # Municipality error -> try next municipality variant
-            if "MUNICIPIO NO EXISTE" in error_msg:
-                logger.info(f"[CATASTRO] Municipality '{muni}' not found, trying next variant...")
-                break
+                # Province error -> no point retrying
+                if "PROVINCIA NO EXISTE" in error_msg:
+                    return last_result
 
-            # Street not found or number not found -> try next street variant
-            if "VIA NO EXISTE" in error_msg or "NUMERO NO EXISTE" in error_msg:
-                logger.info(f"[CATASTRO] Street variant '{variant}' not found, trying next...")
-                continue
+                # Municipality error -> try next municipality variant
+                if "MUNICIPIO NO EXISTE" in error_msg:
+                    break
 
-            # "NO EXISTE NINGÚN INMUEBLE" (error 5) -> street exists but unit doesn't
-            if "INMUEBLE" in error_msg or "PARAMETROS" in error_msg:
-                logger.info(f"[CATASTRO] No property at unit level for '{variant}', trying next...")
-                continue
-
-            # Any other "NO EXISTE" -> try next variant
-            if "NO EXISTE" in error_msg:
-                logger.info(f"[CATASTRO] '{variant}' not found, trying next...")
-                continue
-
-            # Other errors -> return immediately
-            return last_result
+                # If success with 200 but error in XML, we continue to next variants
 
     return best_result if best_result else last_result
 
