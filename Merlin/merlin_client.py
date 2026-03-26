@@ -119,8 +119,19 @@ def _normalize_enum(value: str) -> str:
     return ascii_str.strip().upper().replace(" ", "_")
 
 
-def _build_riesgo_hogar(data: dict) -> dict:
-    """Build riesgo_hogar dict for datos_basicos (Hogar projects)."""
+def _build_riesgo_hogar(data: dict, localidad: Optional[dict] = None) -> dict:
+    """Build riesgo_hogar dict for datos_basicos (Hogar projects).
+    
+    Args:
+        data: User-provided data dict.
+        localidad: Resolved locality from /comun-api/v1/address/localities.
+    """
+    loc = localidad or {}
+    cp = data.get("codigo_postal", "")
+    id_provincia = data.get("id_provincia") or loc.get("id_provincia") or cp[:2]
+    poblacion = data.get("poblacion") or loc.get("descripcion") or ""
+    desc_provincia = data.get("descripcion_provincia") or loc.get("provincia") or PROVINCIAS_ES.get(id_provincia, "")
+
     return {
         "caracteristicas": {
             "tipo_vivienda": _normalize_enum(data.get("tipo_vivienda", "PISO")),
@@ -142,8 +153,8 @@ def _build_riesgo_hogar(data: dict) -> dict:
             "referencia_catastral": data.get("referencia_catastral", ""),
         },
         "direccion": {
-            "codigo_postal": data.get("codigo_postal", ""),
-            "poblacion": data.get("poblacion", ""),
+            "codigo_postal": cp,
+            "poblacion": poblacion,
             "id_tipo_via": data.get("id_tipo_via", "CL"),
             "nombre_via": data.get("nombre_via", ""),
             "numero": data.get("numero_calle", "1"),
@@ -151,14 +162,20 @@ def _build_riesgo_hogar(data: dict) -> dict:
             "escalera": data.get("escalera", ""),
             "piso": data.get("piso", ""),
             "puerta": data.get("puerta", ""),
-            "id_provincia": data.get("id_provincia", ""),
+            "id_provincia": id_provincia,
             "id_pais": data.get("id_pais", "108-6"),
-            "descripcion_provincia": data.get("descripcion_provincia", ""),
+            "descripcion_provincia": desc_provincia,
             "ajuste_poblacion": {
-                "codigo": "", "descripcion": "", "codigo_postal": "",
-                "provincia": "", "nombre_via": "", "id_municipio": "",
-                "id_poblacion": "", "id_provincia": "", "nombre_municipio": "",
-                "id_zona": "",
+                "codigo": loc.get("codigo", ""),
+                "descripcion": loc.get("descripcion", ""),
+                "codigo_postal": cp,
+                "provincia": loc.get("provincia", desc_provincia),
+                "nombre_via": data.get("nombre_via", ""),
+                "id_municipio": loc.get("id_municipio", ""),
+                "id_poblacion": loc.get("id_poblacion", ""),
+                "id_provincia": id_provincia,
+                "nombre_municipio": loc.get("nombre_municipio", loc.get("descripcion", "")),
+                "id_zona": loc.get("id_zona", ""),
             },
         },
         "dependencias_anexas": {
@@ -177,17 +194,27 @@ def _build_riesgo_hogar(data: dict) -> dict:
     }
 
 
-def _build_persona(data: dict, tipo_figura: str) -> dict:
-    """Build persona dict for datos_basicos."""
+FIGURA_HOGAR_CLASS = "ebroker.multi4.data.common.figuras.hogar.FiguraTarificacionHogar"
+
+
+def _build_persona(data: dict, tipo_figura: str, is_hogar: bool = False, localidad: Optional[dict] = None) -> dict:
+    """Build persona dict for datos_basicos.
+    
+    Args:
+        is_hogar: If True, adds @class for Java deserialization of FiguraTarificacionHogar.
+        localidad: Resolved locality from /comun-api/v1/address/localities.
+    """
+    loc = localidad or {}
     nombre = data.get("nombre", "")
     apellido1 = data.get("apellido1", "")
     apellido2 = data.get("apellido2", "")
     nombre_completo = f"{apellido1} {apellido2}, {nombre}".strip(", ")
 
     codigo_postal = data.get("codigo_postal", "")
-    poblacion = data.get("poblacion", "")
+    poblacion = data.get("poblacion") or loc.get("descripcion", "")
     nombre_via = data.get("nombre_via", "")
-    id_provincia = data.get("id_provincia", "")
+    id_provincia = data.get("id_provincia") or loc.get("id_provincia") or codigo_postal[:2]
+    desc_provincia = data.get("descripcion_provincia") or loc.get("provincia") or PROVINCIAS_ES.get(id_provincia, "")
     nacionalidad = data.get("nacionalidad", "108-6")
 
     p: Dict[str, Any] = {
@@ -220,15 +247,25 @@ def _build_persona(data: dict, tipo_figura: str) -> dict:
             "puerta": data.get("puerta", ""),
             "poblacion": poblacion,
             "id_provincia": id_provincia,
-            "descripcion_provincia": data.get("descripcion_provincia", ""),
+            "descripcion_provincia": desc_provincia,
             "ajuste_poblacion": {
-                "codigo": "", "descripcion": "", "codigo_postal": "",
-                "provincia": "", "nombre_via": "", "id_municipio": "",
-                "id_poblacion": "", "id_provincia": "", "nombre_municipio": "",
-                "id_zona": "",
+                "codigo": loc.get("codigo", ""),
+                "descripcion": loc.get("descripcion", ""),
+                "codigo_postal": codigo_postal,
+                "provincia": loc.get("provincia", desc_provincia),
+                "nombre_via": nombre_via,
+                "id_municipio": loc.get("id_municipio", ""),
+                "id_poblacion": loc.get("id_poblacion", ""),
+                "id_provincia": id_provincia,
+                "nombre_municipio": loc.get("nombre_municipio", loc.get("descripcion", "")),
+                "id_zona": loc.get("id_zona", ""),
             },
         },
     }
+
+    if is_hogar:
+        p["@class"] = FIGURA_HOGAR_CLASS
+        p["class_name"] = FIGURA_HOGAR_CLASS
 
     fecha_nac = _parse_date(data.get("fecha_nacimiento"))
     if fecha_nac:
@@ -284,6 +321,8 @@ class MerlinClient:
     def __init__(self, config: Optional[dict] = None):
         config = config or {}
         self.base_url = config.get("url", "https://drseguros.merlin.insure/multi/multitarificador4-servicios") 
+        self._origin = self.base_url.split("/multi/")[0]
+        self._comun_api_url = self._origin + "/comun-api/v1"
         self._enfocar_base_url = self.base_url.replace(
             "/multi/multitarificador4-servicios",
             "/e-nfocar-services",
@@ -292,6 +331,21 @@ class MerlinClient:
         self.password = config.get("pass") 
         self.timeout = config.get("timeout", 300) 
         self._session = requests.Session()
+        self._session.headers.update({
+            "Connection": "keep-alive",
+            "Accept": "application/json, text/plain, */*",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Accept-Language": "es-ES,es;q=0.9",
+            "Origin": self._origin,
+            "Referer": f"{self._origin}/project/home/insurers",
+            "sec-ch-ua": '"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": '"Windows"',
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "same-origin",
+        })
         self._token: Optional[str] = None
 
         enfocar_cfg = config.get("enfocar", {})
@@ -352,6 +406,35 @@ class MerlinClient:
         logger.info("[MERLIN] Login successful.")
         return self._token
 
+    def resolver_localidad(self, codigo_postal: str) -> dict:
+        """Resolve postal code via Merlin's own locality API.
+        
+        GET /comun-api/v1/address/localities?postCode=XXXXX
+        Uses a plain request without JWT Authorization (this endpoint doesn't use it).
+        """
+        cp = str(codigo_postal).strip().zfill(5)
+        url = f"{self._comun_api_url}/address/localities"
+        logger.info(f"[MERLIN] Resolving locality for CP {cp}...")
+        try:
+            resp = requests.get(
+                url, params={"postCode": cp}, timeout=self.timeout,
+                headers={
+                    "Accept": "application/json, text/plain, */*",
+                    "Referer": f"{self._origin}/project/home/risk",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+                },
+            )
+            resp.raise_for_status()
+            localities = resp.json()
+            if localities and isinstance(localities, list) and len(localities) > 0:
+                loc = localities[0]
+                logger.info(f"[MERLIN] Locality resolved: {loc.get('descripcion', '?')} (keys: {list(loc.keys())})")
+                return loc
+            logger.warning(f"[MERLIN] No localities found for CP {cp}")
+        except Exception as exc:
+            logger.warning(f"[MERLIN] Locality resolution failed for CP {cp}: {exc}")
+        return {}
+
     def obtener_aseguradoras(self, subramo: str) -> Dict[str, Any]:
         logger.info(f"[MERLIN] Fetching insurers for '{subramo}'...")
         items = self._request("GET", "/aseguradoras", "merlin_aseguradoras", params={"subramo": subramo})
@@ -374,15 +457,29 @@ class MerlinClient:
         return aseguradoras
 
     def obtener_proyecto_nuevo(self, plantillas_ids: List[str]) -> Dict[str, Any]:
-        ids_str = ",".join(str(i) for i in plantillas_ids)
-        logger.info(f"[MERLIN] Creating new project template (ids={ids_str[:60]}...)")
+        """Crea una plantilla de proyecto en Merlin usando el formato exacto del navegador.
+        
+        Usa POST /proyecto/nuevo con claves en snake_case.
+        """
+        logger.info(f"[MERLIN] Creando plantilla de proyecto ({len(plantillas_ids)} compañías)...")
+        
+        # El navegador usa snake_case para las claves de este POST
+        body = {
+            "ids_plantillas_seleccionadas": [str(i) for i in plantillas_ids],
+            "ids_plantillas_complementario_seleccionadas": []
+        }
+        
         proyecto = self._request(
-            "GET", "/proyecto/nuevo", "merlin_proyecto_nuevo",
-            params={"idsPlantillasSeleccionadas": ids_str},
+            "POST", "/proyecto/nuevo", "merlin_proyecto_nuevo",
+            json=body,
+            headers={
+                "Origin": "https://drseguros.merlin.insure",
+                "Referer": "https://drseguros.merlin.insure/project/home/insurers"
+            }
         )
-         # Often the JSON returns them in 'plantillas' or 'aseguradoras'
+        
         count = len(proyecto.get('aseguradoras', proyecto.get('plantillas', [])))
-        logger.info(f"[MERLIN] Got project template with {count} insurers.")
+        logger.info(f"[MERLIN] Plantilla obtenida. Pasarela ID: {proyecto.get('id_proyecto_en_pasarela')}")
         return proyecto
 
     def obtener_proyecto(self, id_proyecto: str) -> Dict[str, Any]:
@@ -395,7 +492,15 @@ class MerlinClient:
     def guardar_proyecto(self, proyecto: Dict[str, Any]) -> Dict[str, Any]:
         datos_b = proyecto.get("datosBasicos") or proyecto.get("datos_basicos", {})
         logger.info(f"[MERLIN] Saving project... datosBasicos keys: {list(datos_b.keys()) if isinstance(datos_b, dict) else 'N/A'}")
-        result = self._request("PUT", "/proyecto", "merlin_guardar_proyecto", json=proyecto)
+        
+        result = self._request(
+            "PUT", "/proyecto", "merlin_guardar_proyecto", 
+            json=proyecto,
+            headers={
+                "Origin": "https://drseguros.merlin.insure",
+                "Referer": "https://drseguros.merlin.insure/project/home/insurers"
+            }
+        )
         logger.info(f"[MERLIN] Project saved. ID={result.get('id', 'unknown')}")
         return result
 
@@ -413,10 +518,10 @@ class MerlinClient:
         datos_adicionales = {
             "fecha": fecha_efecto,
             "capitales": {
-                "continente": _safe_int(data.get("capital_continente")) or 100000,
+                "continente": _safe_int(data.get("capital_continente")) or 150000,
                 "continente_primer_riesgo": None,
                 "obras_reforma": None,
-                "mobiliario_general": _safe_int(data.get("capital_contenido")) or 10000,
+                "mobiliario_general": _safe_int(data.get("capital_contenido")) or 30000,
                 "mobiliario_dependencias_anexas": None,
                 "mobiliario_profesional": None,
                 "vehiculos_en_garaje": None,
@@ -448,13 +553,29 @@ class MerlinClient:
         )
 
     def solicitar_capitales_recomendados(self, id_proyecto: str, dgs_companias: List[str]) -> Dict[str, Any]:
-        """Request recommended capitals from all insurers for a HOGAR project."""
+        """Request recommended capitals from all insurers for a HOGAR project.
+        
+        Response can be a plain string process ID or a JSON object.
+        """
         dgs_csv = ",".join(dgs_companias)
         logger.info(f"[MERLIN] Requesting capitals: project={id_proyecto}, dgs={dgs_csv}")
-        return self._request(
-            "GET", "/capitales-recomendados", "merlin_capitales_recomendados",
-            params={"idProyecto": id_proyecto, "dgsCompanias": dgs_csv},
-        )
+        url = f"{self.base_url}/capitales-recomendados"
+        try:
+            resp = self._session.get(url, params={"idProyecto": id_proyecto, "dgsCompanias": dgs_csv}, timeout=self.timeout)
+            resp.raise_for_status()
+            raw = resp.text.strip()
+            logger.info(f"[MERLIN] Capitals raw response ({len(raw)} chars): {raw[:200]}")
+            if not raw:
+                return {}
+            try:
+                return json.loads(raw)
+            except json.JSONDecodeError:
+                return {"idProcesoPasarela": raw}
+        except requests.exceptions.HTTPError as exc:
+            r = exc.response
+            body = r.text[:300] if r is not None else ""
+            code = r.status_code if r is not None else "?"
+            raise MerlinClientError(f"HTTP {code} on merlin_capitales_recomendados: {body}")
 
     def consultar_estado_capitales(self, id_proceso_pasarela: str, subramo: str = "HOGAR") -> Dict[str, Any]:
         """Poll recommended capitals status."""
@@ -622,7 +743,43 @@ class MerlinClient:
         logger.info(f"[MERLIN] Extracted {len(all_offers)} total offers across all insurers")
         return all_offers
 
-    def _tarificar_y_obtener_ofertas(self, mongo_id: str, subramo: str, max_wait: int = 100) -> tuple:
+    def guardar_riesgo_hogar(self, id_pasarela: str, riesgo: Dict[str, Any]) -> Dict[str, Any]:
+        """Save vivienda/risk data for Hogar projects.
+        
+        PUT /proyectos-hogar/{idPasarela}/riesgo
+        This is the dedicated endpoint for vivienda characteristics, construction,
+        address, protections, etc. Data sent via PUT /proyecto is NOT persisted.
+        """
+        logger.info(f"[MERLIN] Saving riesgo/vivienda data for pasarela {id_pasarela}...")
+        return self._request(
+            "PUT", f"/proyectos-hogar/{id_pasarela}/riesgo",
+            "merlin_hogar_riesgo",
+            json=riesgo,
+            headers={"Referer": f"{self._origin}/project/home/risk"},
+        )
+
+    def actualizar_afinaciones(self, id_pasarela: str, afinaciones: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Actualiza las afinaciones del proyecto en Merlin.
+        
+        Usa PUT /proyecto/afinaciones/{id_pasarela}.
+        """
+        logger.info(f"[MERLIN] Sincronizando afinaciones para pasarela {id_pasarela}...")
+        
+        body = {
+            "afinaciones": afinaciones,
+            "afinaciones_complementarias": []
+        }
+        
+        return self._request(
+            "PUT", f"/proyecto/afinaciones/{id_pasarela}", "merlin_actualizar_afinaciones",
+            json=body,
+            headers={
+                "Origin": "https://drseguros.merlin.insure",
+                "Referer": "https://drseguros.merlin.insure/project/home/risk"
+            }
+        )
+
+    def _tarificar_y_obtener_ofertas(self, mongo_id: str, id_pasarela: str, subramo: str, max_wait: int = 100) -> tuple:
         """Launch tarification, poll, fetch final project and extract offers.
         Returns (tarificacion_ok, ofertas, proyecto_final).
         """
@@ -636,7 +793,7 @@ class MerlinClient:
             if process_id:
                 tarificacion_ok = self._poll_tarificacion(process_id, mongo_id, subramo, max_wait=max_wait)
             else:
-                logger.warning("[MERLIN] No process ID returned from iniciar.")
+                logger.warning(f"[MERLIN] No process ID returned from iniciar. Response: {tar_resp}")
         except Exception as exc:
             logger.warning(f"[MERLIN] Tarification launch failed: {exc}")
 
@@ -705,7 +862,20 @@ class MerlinClient:
         }
 
     def crear_proyecto_completo(self, datos: dict) -> Dict[str, Any]:
-        """Create a complete insurance project in Merlin and launch tarification."""
+        """Create a complete insurance project in Merlin and launch tarification.
+        
+        HOGAR flow (mirrors browser):
+          1. Login
+          2. GET /aseguradoras -> ALL active templates
+          3. POST /proyecto/nuevo -> project scaffold with all afinaciones
+          4. GET /comun-api/v1/address/localities -> resolve CP to locality
+          5. Build datos_basicos (riesgo_hogar + tomador + propietario with @class)
+          6. PUT /proyecto -> save project
+          7. PUT /proyecto/afinaciones/{id} -> sync insurer configs
+          8. PUT /proyectos-hogar/{id}/datosAdicionales -> save capitals
+          9. If capitals missing -> request recommendations, return to user
+         10. _tarificar_y_obtener_ofertas
+        """
         try:
             self.login()
             ramo = str(datos.get("ramo", "AUTO")).upper()
@@ -717,6 +887,7 @@ class MerlinClient:
                 return {"success": False, "error": f"No insurers available for {ramo}"}
 
             plantillas_ids = [a["plantilla_id"] for a in aseguradoras.values()]
+            logger.info(f"[MERLIN] Using ALL {len(plantillas_ids)} insurer templates")
             proyecto = self.obtener_proyecto_nuevo(plantillas_ids)
 
             datos_basicos = proyecto.get("datosBasicos") or proyecto.get("datos_basicos", {})
@@ -729,12 +900,24 @@ class MerlinClient:
                 datos_basicos["conductor_es_tomador"] = datos.get("es_tomador", True)
                 datos_basicos["conductor_es_propietario"] = datos.get("es_propietario", True)
                 datos_basicos["@class"] = DATOS_BASICOS_AUTO_CLASS
+                datos_basicos["tomador"] = _build_persona(datos, "TOMADOR")
             else:
-                datos_basicos["riesgo_hogar"] = _build_riesgo_hogar(datos)
-                datos_basicos["propietario"] = _build_persona(datos, "PROPIETARIO")
-                datos_basicos["@class"] = DATOS_BASICOS_HOGAR_CLASS
+                localidad = self.resolver_localidad(datos.get("codigo_postal", ""))
+                cp = datos.get("codigo_postal", "")
+                id_prov = datos.get("id_provincia") or localidad.get("id_provincia") or cp[:2]
+                datos["id_provincia"] = id_prov
+                datos["poblacion"] = datos.get("poblacion") or localidad.get("poblacion") or localidad.get("description", "").split("(")[0].strip() or ""
+                datos["descripcion_provincia"] = datos.get("descripcion_provincia") or localidad.get("provincia") or PROVINCIAS_ES.get(id_prov, "")
 
-            datos_basicos["tomador"] = _build_persona(datos, "TOMADOR")
+                riesgo = _build_riesgo_hogar(datos, localidad)
+                datos_basicos.update(riesgo)
+
+                datos_basicos["propietario"] = _build_persona(datos, "PROPIETARIO", is_hogar=True, localidad=localidad)
+                datos_basicos["tomador"] = _build_persona(datos, "TOMADOR", is_hogar=True, localidad=localidad)
+                datos_basicos["@class"] = DATOS_BASICOS_HOGAR_CLASS
+                datos_basicos["class_name"] = DATOS_BASICOS_HOGAR_CLASS
+                datos_basicos["codigo_postal"] = cp
+                datos_basicos["poblacion"] = datos["poblacion"]
 
             if "datosBasicos" in proyecto:
                 proyecto["datosBasicos"] = datos_basicos
@@ -744,6 +927,22 @@ class MerlinClient:
             result = self.guardar_proyecto(proyecto)
             mongo_id = result.get("id")
             id_pasarela = result.get("id_proyecto_en_pasarela")
+            logger.info(f"[MERLIN] Project saved: mongo_id={mongo_id}, pasarela={id_pasarela}")
+
+            if ramo == "HOGAR" and id_pasarela:
+                afinaciones = proyecto.get("afinaciones", [])
+                try:
+                    self.actualizar_afinaciones(str(id_pasarela), afinaciones)
+                    logger.info(f"[MERLIN] Afinaciones synced ({len(afinaciones)} insurers)")
+                except Exception as exc:
+                    logger.warning(f"[MERLIN] Afinaciones sync failed: {exc}")
+
+                riesgo = _build_riesgo_hogar(datos, localidad)
+                try:
+                    self.guardar_riesgo_hogar(str(id_pasarela), riesgo)
+                    logger.info("[MERLIN] Riesgo/vivienda data saved")
+                except Exception as exc:
+                    logger.warning(f"[MERLIN] Riesgo save failed: {exc}")
 
             if ramo == "HOGAR" and id_pasarela and mongo_id:
                 capitals_response = self._obtener_capitales_recomendados_hogar(
@@ -753,7 +952,7 @@ class MerlinClient:
                     return capitals_response
 
             tarificacion_ok, ofertas, proyecto_final = self._tarificar_y_obtener_ofertas(
-                mongo_id, subramo, max_wait_polling
+                mongo_id, str(id_pasarela), subramo, max_wait_polling
             )
 
             return {
@@ -790,7 +989,7 @@ class MerlinClient:
 
             max_wait_polling = int(datos.get("max_wait_polling", 100))
             tarificacion_ok, ofertas, proyecto_final = self._tarificar_y_obtener_ofertas(
-                mongo_id, SUBRAMO_HOGAR, max_wait_polling
+                mongo_id, str(id_pasarela), SUBRAMO_HOGAR, max_wait_polling
             )
 
             return {

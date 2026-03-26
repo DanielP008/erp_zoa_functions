@@ -14,5 +14,4 @@ services:
 
 networks:
   zoa-network:
-    name: zoa-network
-    driver: bridge
+    external: true
