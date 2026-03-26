@@ -1,0 +1,62 @@
+{
+    "insuranceLine": {
+        "id": "Home"
+    },
+    "effectiveDate": "2026-04-15",
+    "holder": {
+        "identificationDocument": {
+            "type": {
+                "id": "Dni"
+            },
+            "id": "72464862G"
+        },
+        "name": "Juan",
+        "surname": "Pérez",
+        "gender": {
+            "id": "Male"
+        },
+        "birthDate": "1980-01-01",
+        "phones": [
+            {
+                "number": "676112233"
+            }
+        ],
+        "emails": [
+            {
+                "address": "juan.perez@email.com"
+            }
+        ],
+        "addresses": [
+            {
+                "postalCode": "08013",
+                "town": {
+                    "id": 3679
+                }
+            }
+        ]
+    },
+    "risk": {
+        "address": {
+            "postalCode": "08013",
+            "town": {
+                "id": 3679
+            },
+            "roadType": {
+                "id": "Calle"
+            },
+            "roadName": "Principal",
+            "roadNumber": "123"
+        },
+        "propertyType": {
+            "id": "Apartment"
+        },
+        "occupancyType": {
+            "id": "PrimaryResidence"
+        },
+        "buildYear": 1995,
+        "squareMeters": 110,
+        "tenantRisk": false,
+        "buildingValue": 120000,
+        "contentsValue": 60000
+    }
+}
