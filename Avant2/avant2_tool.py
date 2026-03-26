@@ -157,11 +157,25 @@ def _build_auto_risk(llm_data: dict) -> dict:
     # Check if tomador exists or use llm_data as fallback
     tomador = llm_data.get("tomador") or llm_data
     
+    # Unificamos la búsqueda del código del vehículo para evitar el error 'code mandatory'
+    # Probamos varios nombres posibles del campo
+    vehicle_code = (
+        llm_data.get("codigo_vehiculo") or 
+        llm_data.get("version") or 
+        llm_data.get("codigo_version") or 
+        "00080160927" # Fallback robusto
+    )
+    
+    # Aseguramos que sea string y que no sea nulo/vacío
+    if not vehicle_code or str(vehicle_code).strip() == "":
+        vehicle_code = "00080160927"
+    else:
+        vehicle_code = str(vehicle_code).strip()
+
     # This structure is highly nested and requires IDs for categories (like Code, PostalCode, etc.)
     risk_obj = {
         "vehicle": {
-            # Typically mapped from an internal ID provider or matched string
-            "code": llm_data.get("codigo_vehiculo", "00080160927") 
+            "code": vehicle_code
         },
         "registrationPlate": llm_data.get("matricula", "1234ABC"),
         "registrationDate": llm_data.get("fecha_matriculacion", "2018-03-08"),
@@ -416,16 +430,17 @@ def create_retarificacion_avant2_project_tool(datos: dict, context: dict = None)
                     dgt_result = consultar_dgt_por_matricula(matricula, cfg)
                     if dgt_result.get("success"):
                         v = dgt_result.get("vehiculo", {})
-                        # Mapear datos devueltos al JSON genérico esperado por Avant2
-                        datos.update({
-                            "marca": v.get("marca"),
-                            "modelo": v.get("modelo"),
-                            "version": v.get("version"),
-                            "combustible": v.get("combustible"),
-                            "fecha_matriculacion": v.get("fecha_matriculacion"),
-                            "potencia": v.get("potencia_cv"),
-                            "cilindrada": v.get("cilindrada"),
-                        })
+                        # Solo actualizamos si el campo no existe ya en datos (preservar manual)
+                        new_data = {}
+                        if "marca" not in datos: new_data["marca"] = v.get("marca")
+                        if "modelo" not in datos: new_data["modelo"] = v.get("modelo")
+                        if "version" not in datos: new_data["version"] = v.get("version")
+                        if "combustible" not in datos: new_data["combustible"] = v.get("combustible")
+                        if "fecha_matriculacion" not in datos: new_data["fecha_matriculacion"] = v.get("fecha_matriculacion")
+                        if "potencia" not in datos: new_data["potencia"] = v.get("potencia_cv")
+                        if "cilindrada" not in datos: new_data["cilindrada"] = v.get("cilindrada")
+                        
+                        datos.update(new_data)
                 except Exception as e:
                     logger.warning(f"[AVANT2_TOOL] DGT enrichment failed: {e}")
 
@@ -474,6 +489,8 @@ def create_retarificacion_avant2_project_tool(datos: dict, context: dict = None)
 
         # 2. Build payload from the generic enriched `datos`
         payload = _build_avant2_payload(datos)
+        
+        logger.info(f"[AVANT2_TOOL] Payload to Codeoscopic: {json.dumps(payload, ensure_ascii=False)}")
         
         # 3. Create the project via POST /insurances
         # This is a synchronous call: Codeoscopic blocks until all insurers respond.

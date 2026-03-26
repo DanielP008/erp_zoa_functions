@@ -73,8 +73,13 @@ class Avant2Client:
                 error_msg = exc.response.json()
             except json.JSONDecodeError:
                 error_msg = exc.response.text[:300]
+            
+            # Incluir el payload en el error para depuración
+            payload_str = json.dumps(kwargs.get('json', {}), ensure_ascii=False)
+            logger.error(f"[AVANT2] 400 Bad Request Payload: {payload_str}")
+            
             raise Avant2ClientError(
-                f"HTTP {exc.response.status_code if exc.response else '?'} on {endpoint}: {error_msg}"
+                f"HTTP {exc.response.status_code if exc.response is not None else '?'} on {endpoint}: {error_msg}. Payload sent: {payload_str[:500]}"
             )
 
     # -- Public API -----------------------------------------------------------
