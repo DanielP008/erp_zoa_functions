@@ -2,6 +2,8 @@
 
 Este repositorio contiene una Google Cloud Function desarrollada en Python diseñada para actuar como middleware de integración entre **Zoa Flow** y el ERP de seguros **ebroker**. 
 
+> **Note**: This project was developed during my time at Zoa Suite, where I was responsible for building and maintaining this repository to handle the middleware logic described in this documentation.
+
 El servicio permite automatizar consultas y operaciones relacionadas con clientes, pólizas, siniestros y recibos, facilitando la comunicación bidireccional entre la plataforma Zoa y los sistemas de gestión de las corredurías.
 
 ## 🚀 Arquitectura
